@@ -38,3 +38,8 @@ def goldberg_rao(G, s, t):
 
         F = F/2
 
+if __name__ == "__main__":
+
+    
+    print("hello")
+

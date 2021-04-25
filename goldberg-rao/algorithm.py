@@ -159,18 +159,134 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     else:
         R = residual
 
+    # Zero-out
+    for u in R:
+        for e in R[u].values():
+            e["flow"] = 0
+
     start_node = s
     end_node = t
     graph = R
-
-
-    max_capacity = max([edge["capacity"] for edge in G.edges])
+    
+    max_capacity =  max(G.edges, key=lambda e: e[capacity])
+    m = G.number_of_edges()
+    n = G.number_of_nodes()
 
     # F in the algorithm
-    estimate_distance_from_max_flow = len(G.vertices) * max_capacity
+    error_bound = n * max_capacity
 
     # Lambda in the algorithm
-    num_phase_iterations = int(math.ceil(min(math.sqrt(len(G.edges)), math.pow(len(G.vertices), 2 / 3))))
+    phases = int(math.ceil(min(math.sqrt(m), math.pow(n, 2 / 3))))
 
 
+
+    while error_bound >= 1:
+        # Delta in the paper
+        flow_to_route = math.ceil(error_bound / phases) # ceil?
+
+        for u, v, attr in graph.edges: # TODO should we be iterating over reverse edges?
+            attr["length"] = 0 if (get_residual_cap(graph, u, v)) >= 3 * flow_to_route else 1
+
+        dials_algorithm(graph, end_node)
+        
+        for _ in range(phases):
+            
+            for u, v, attr in graph.edges: 
+                resid_cap = get_residual_cap(graph, u, v)
+                resid_cap_reverse = get_residual_cap(graph, v, u)
+                if resid_cap >= 2 * flow_to_route and resid_cap < 3 * flow_to_route and resid_cap_reverse >= 3 * flow_to_route and u['distance'] == v['distance']:
+                    attr['length_bar'] = 0
+                else:
+                    attr['length_bar'] = attr['length']
+
+            A, S = contraction(graph) 
+            
+
+
+            if min_canonical_cut(graph) <= error_bound // 2:
+                break 
+            
+
+        
+        error_bound //= 2
+            
+
+        
+        
+        
     return 1
+
+
+def get_residual_cap(graph, u, v):
+    attr = graph.edges[u, v]
+    return attr["capacity"] - attr["flow"] + graph.edges[v, u]["flow"]
+
+def goldberg_rao_phase(graph, start_node, end_node, error_bound, num_phase_iterations):
+    pass
+
+def min_canonical_cut(graph, distance="distance"):
+    # TODO why is dl(s) a bound on distance?
+    # TODO there are nodes of distance 0, why are they not included?
+    INF = graph.graph["inf"]
+    max_distance = max(G.nodes, key=lambda v: v[distance] if v[distance] != INF else -1)
+    if max_distance == -1:
+        return ...
+        
+
+# adds "distance" to each vertex based on "length"
+# sets disconnected edges to infinity distance TODO
+def dial_algorithm(graph, end_node):
+
+    INF = graph.graph["inf"]
+    for node in graph:
+        node["distance"] = INF
+
+    end_node["distance"] = 0
+    n =  graph.number_of_nodes()
+    buckets = [set() for _ in range(n)]
+
+    bucket_idx = 0
+    while True:
+        while len(buckets[bucket_idx]) == 0 and bucket_idx < n:
+            idx += 1
+        if idx == n:
+            break
+
+        vertex = buckets[bucket_idx][0]
+        buckets[bucket_idx].remove(vertex)
+        for neighbor in graph.predecessors(vertex):
+            length = graph[neighbor][vertex]['length']
+            
+            dist_vertex = vertex.get("distance")
+            dist_neighbor = neighbor.get("distance", None)
+            
+            if dist_neighbor == INF or dist_neighbor > dist_vertex + length:
+                if dist_neighbor != -1:
+                    buckets[dist_neighbor].remove(neighbor)
+                dist_neighbor = dist_vertex + length
+                neighbor["distance"] = dist_neighbor
+                buckets[dist_neighbor].add(neighbor)
+    return graph   
+            
+                
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+
+        
+
+
+    
+    
+
+    
