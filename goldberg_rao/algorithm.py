@@ -168,17 +168,16 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     end_node = t
     graph = R
     
-    max_capacity =  max(G.edges, key=lambda e: e[capacity])
-    m = G.number_of_edges()
-    n = G.number_of_nodes()
+    max_capacity =  max(graph.edges, key=lambda e: e[capacity])
+    m = graph.number_of_edges()
+    n = graph.number_of_nodes()
 
     # F in the algorithm
     error_bound = n * max_capacity
 
     # Lambda in the algorithm
     phases = int(math.ceil(min(math.sqrt(m), math.pow(n, 2 / 3))))
-
-
+    total_routed_flow = 0
 
     while error_bound >= 1:
         # Delta in the paper
@@ -187,7 +186,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
         for u, v, attr in graph.edges: # TODO should we be iterating over reverse edges?
             attr["length"] = 0 if (get_residual_cap(graph, u, v)) >= 3 * flow_to_route else 1
 
-        dials_algorithm(graph, end_node)
+        construct_distance_metric(graph, end_node)
         
         for _ in range(phases):
             
@@ -199,43 +198,202 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                 else:
                     attr['length_bar'] = attr['length']
 
-            A, S = contraction(graph) 
+            contracted_graph = construct_graph_contraction(graph)
+            total_routed_flow += compute_blocking_flow(contracted_graph, start_node, end_node, flow_to_route) 
+            translate_flow_from_contraction_to_original(contracted_graph, graph)
             
-
-
             if min_canonical_cut(graph) <= error_bound // 2:
                 break 
             
-
-        
         error_bound //= 2
-            
-
-        
-        
-        
     return 1
 
 
-def get_residual_cap(graph, u, v):
+def get_residual_cap(graph, u, v, capacity="capacity"):
     attr = graph.edges[u, v]
-    return attr["capacity"] - attr["flow"] + graph.edges[v, u]["flow"]
+    return attr[capacity] - attr["flow"] + graph.edges[v, u]["flow"]
+
+def update_flow(graph, u, v, flow_val, capacity="capacity"):
+    if flow_val < 0:
+        update_flow(graph, v, u, -flow_val)
+        return
+    attr = graph.edges[u, v]
+
+    # residual edge
+    if attr[capacity] == 0:
+        graph.edges[v, u]["flow"] -= flow_val
+    
+    # forward edge
+    else if flow_val <= attr[capacity] - attr["flow"]:
+        attr["flow"] += flow_val
+    
+    else: 
+        raise AssertionError("Cannot update flow value here")
+    
+
+
 
 def goldberg_rao_phase(graph, start_node, end_node, error_bound, num_phase_iterations):
     pass
 
-def min_canonical_cut(graph, distance="distance"):
-    # TODO why is dl(s) a bound on distance?
-    # TODO there are nodes of distance 0, why are they not included?
+def min_canonical_cut(graph, start_node, end_node, distance="distance"):
     INF = graph.graph["inf"]
-    max_distance = max(G.nodes, key=lambda v: v[distance] if v[distance] != INF else -1)
-    if max_distance == -1:
-        return ...
+    max_distance = start_node[distance]
+    distance_arr = [0 for _ in range(max_distance)]
+
+    for u, v, attr in G.edges: 
+
+        if is_admissible_edge(u, v): 
+            distance_arr[u[distance]] += get_residual_cap(graph, u, v)
+    
+    return min(distance_arr)
+
+def is_admissible_edge(u, v, distance="distance"):
+
+    return u[distance] == v[distance] - 1
+
+
+def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
+    
+    curr_node = start_node
+    curr_path = [start_node]
+    total_flow = 0
+    while total_flow < maximum_flow_to_route:
+        flow_val = blocking_flow_helper(graph, start_node, curr_path, end_node, maximum_flow_to_route - total_flow)
+        if not flow_val:
+            return
+        total_flow += flow_val
+    return total_flow
+ 
+    
+def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
+
+    if curr_node == end_node: 
+        flow_val = max_flow_left
+        for idx, node in enumerate(curr_path):
+            if idx == 0:
+                continue
+            flow_val = min(flow_val, get_residual_cap(graph, curr_path[idx-1], node))
+            graph[curr_path[idx -1]][node]["on_blocking_flow"] = True
+
+        for idx, node in enumerate(curr_path):
+            if idx == 0:
+                continue
+            graph[curr_path[idx -1]][node]["flow"] = flow_val
+
+        return flow_val
+
+
+    for neighbor in graph.successors(curr_node):
+        if not is_admissible_edge(curr_node, neighbor) or graph[curr_node][neighbor].get("is_visited", False):
+            continue
+        curr_path.append(neighbor)
+            path_found = blocking_flow_helper(graph, neighbor, curr_path, end_node, max_flow_left)
+        if path_found >= 0:
+            return
+    
+    curr_path.pop()
+    return -1
+
+
+
+def construct_graph_contraction(graph, start_node, end_node):
+
+    condensed_graph = condensation(graph)
+    
+    # construct in-tree and out-tree
+
+    for scc in condensed_graph:
+
+        if len(scc["members"]) < 2:
+            continue
+
+        rep_vertex = scc["members"][0]
+
+        if start_node in scc["members"]:
+            rep_vertex = start_node
+        else if end_node in scc["members"]:
+            rep_vertex = end_node
         
+        scc["representative"] = rep_vertex
+         # out tree construction 
+
+        children_queue = [rep_vertex]
+        visited = set()
+        while len(children_queue) != 0:
+            curr_vertex = children_queue.pop()
+            curr_vertex["out_children"] = []
+            visited.add(curr_vertex)
+            for neighbor in graph.successors(curr_vertex):
+                if neighbor not in visited and graph[curr_vertex, neighbor]["length"] == 0:
+                    curr_vertex["out_children"].append(neighbor)
+        # in tree construction
+        children_queue = [rep_vertex]
+        visited = set()
+        while len(children_queue) != 0:
+            curr_vertex = children_queue.pop()
+            curr_vertex["in_children"] = []
+            visited.add(curr_vertex)
+            for neighbor in graph.successors(curr_vertex):
+                if neighbor not in visited and graph[neighbor, curr_vertex]["length"] == 0:
+                    curr_vertex["in_children"].append(neighbor)
+
+
+def translate_flow_from_contraction_to_original(contraction, original):
+
+    # assign flows to edges and the flow in - out for the contracted graph
+    for contraction_edge in contraction.edges: 
+        remaining_edge_flow = contraction_edge["flow"]
+        if not contraction_edge["on_blocking_flow"]:
+            continue
+        for original_edge in contraction_edge["members"]:
+            
+            start_vert, end_vert = original_edge
+            flow_to_route = min(get_residual_cap(original, start_vert, end_vert), remaining_edge_flow)
+            update_flow(original, start_vert, end_vert, flow_to_route)
+            start_vert["flow"] -= flow_to_route
+            end_vert["flow"] += flow_to_route
+            if flow_to_route == remaining_edge_flow:
+                break
+            remaining_edge_flow -= flow_to_route
+        
+    # assigns flows for each strongly connected component
+
+    for vertex in contraction: 
+
+        if len(vertex["members"]) < 2:
+            rep_vertex = vertex["representative"]
+            flow_in = route_in_flow_tree(rep_vertex)
+            flow_out = route_out_flow_tree(rep_vertex)
+            assert flow_to_route == flow_in
+    
+
+
+def route_in_flow_tree(graph, curr_vertex):
+
+    flow = max(curr_vertex['flow'], 0)
+    for child in curr_vertex["in_children"]:
+        child_flow = route_in_flow_tree(child)
+        if child_flow != 0
+            update_flow(graph, child, curr_vertex, child_flow)
+    del curr_vertex["in_children"]
+    return flow
+
+def route_out_flow_tree(graph, curr_vertex):
+
+    flow = max(-curr_vertex["flow"], 0)
+    for child in curr_vertex["out_children"]:
+        child_flow = route_out_flow_tree(child)
+        if child_flow != 0
+            update_flow(graph, curr_vertex, child, child_flow)
+    del curr_vertex["out_children"]
+    del curr_vertex["flow"]
+    return flow
+
 
 # adds "distance" to each vertex based on "length"
 # sets disconnected edges to infinity distance TODO
-def dial_algorithm(graph, end_node):
+def construct_distance_metric(graph, end_node):
 
     INF = graph.graph["inf"]
     for node in graph:
@@ -268,9 +426,145 @@ def dial_algorithm(graph, end_node):
                 buckets[dist_neighbor].add(neighbor)
     return graph   
             
+
+def length_strongly_connected_components(G):
+    """Generate nodes in strongly connected components of graph.
+
+    Parameters
+    ----------
+    G : NetworkX Graph
+        A directed graph.
+
+    Returns
+    -------
+    comp : generator of sets
+        A generator of sets of nodes, one for each strongly connected
+        component of G.
+
+    Raises
+    ------
+    NetworkXNotImplemented
+        If G is undirected.
+
+    Examples
+    --------
+    Generate a sorted list of strongly connected components, largest first.
+
+    >>> G = nx.cycle_graph(4, create_using=nx.DiGraph())
+    >>> nx.add_cycle(G, [10, 11, 12])
+    >>> [
+    ...     len(c)
+    ...     for c in sorted(nx.strongly_connected_components(G), key=len, reverse=True)
+    ... ]
+    [4, 3]
+
+    If you only want the largest component, it's more efficient to
+    use max instead of sort.
+
+    >>> largest = max(nx.strongly_connected_components(G), key=len)
+
+    See Also
+    --------
+    connected_components
+    weakly_connected_components
+    kosaraju_strongly_connected_components
+
+    Notes
+    -----
+    Uses Tarjan's algorithm[1]_ with Nuutila's modifications[2]_.
+    Nonrecursive version of algorithm.
+
+    References
+    ----------
+    .. [1] Depth-first search and linear graph algorithms, R. Tarjan
+       SIAM Journal of Computing 1(2):146-160, (1972).
+
+    .. [2] On finding the strongly connected components in a directed graph.
+       E. Nuutila and E. Soisalon-Soinen
+       Information Processing Letters 49(1): 9-14, (1994)..
+
+    """
+    preorder = {}
+    lowlink = {}
+    scc_found = set()
+    scc_queue = []
+    i = 0  # Preorder counter
+    for source in G:
+        if source not in scc_found:
+            queue = [source]
+            while queue:
+                v = queue[-1]
+                if v not in preorder:
+                    i = i + 1
+                    preorder[v] = i
+                done = True
+                for w in G[v]:
+                    if G[v, w]["length"] == 0 and w not in preorder:
+                        queue.append(w)
+                        done = False
+                        break
+                if done:
+                    lowlink[v] = preorder[v]
+                    for w in G[v]:
+                        if G[v, w]["length"] == 0 and w not in scc_found:
+                            if preorder[w] > preorder[v]:
+                                lowlink[v] = min([lowlink[v], lowlink[w]])
+                            else:
+                                lowlink[v] = min([lowlink[v], preorder[w]])
+                    queue.pop()
+                    if lowlink[v] == preorder[v]:
+                        scc = {v}
+                        while scc_queue and preorder[scc_queue[-1]] > preorder[v]:
+                            k = scc_queue.pop()
+                            k["flow"] = 0
+                            scc.add(k)
+                        scc_found.update(scc)
+                        yield scc
+                    else:
+                        scc_queue.append(v)
+
                 
 
+def condensation(G, scc=None):
 
+    if scc is None:
+        scc = length_strongly_connected_components(G)
+    mapping = {}
+    members = {}
+    edge_members = {}
+    C = nx.DiGraph()
+    # Add mapping dict as graph attribute
+    C.graph["mapping"] = mapping
+    if len(G) == 0:
+        return C
+    for i, component in enumerate(scc):
+        members[i] = component
+        mapping.update((n, i) for n in component)
+
+    number_of_components = i + 1
+    C.add_nodes_from(range(number_of_components))
+    C.add_edges_from(
+        (mapping[u], mapping[v]) for u, v in G.edges() if mapping[u] != mapping[v]
+    )
+    for u, v, attr in G.edges:
+        if mapping[u] != mapping[v]:
+            if (mapping[u], mapping[v]) in edge_members.keys():
+               edge_members[(mapping[u], mapping[v])]["members"].add((u, v, attr))
+               edge_members[(mapping[u], mapping[v])]["capacity"] += get_residual_cap(G, u, v)
+            else:
+                edge_members[(mapping[u], mapping[v])] = {}
+                edge_members[(mapping[u], mapping[v])]["flow"] = 0
+                edge_members[(mapping[u], mapping[v])]["on_blocking_flow"] = 0
+                edge_members[(mapping[u], mapping[v])]["members"] = set((u, v, attr))
+                edge_members[(mapping[u], mapping[v])]["capacity"] = get_residual_cap(G, u, v)
+        
+        
+    # Add a list of members (ie original nodes) to each node (ie scc) in C.
+    nx.set_node_attributes(C, members, "members")
+
+    # Add edge attributes to each node 
+    nx.set_edge_attributes(C, edge_members)
+    return C
 
 
 
