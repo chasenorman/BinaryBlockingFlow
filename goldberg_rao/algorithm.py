@@ -2,6 +2,7 @@ import networkx
 from abc import ABC
 from networkx.algorithms.flow.utils import build_residual_network
 import math
+from .visualize import visualize_graph
 
 """
 Implementation of the Goldberg Rao Algorithm: 
@@ -167,8 +168,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     start_node = s
     end_node = t
     graph = R
-    
-    max_capacity =  max(graph.edges, key=lambda e: e[capacity])
+    max_capacity = max([attr[capacity] for u, v, attr in graph.edges(data=True)])
     m = graph.number_of_edges()
     n = graph.number_of_nodes()
 
@@ -182,15 +182,15 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     while error_bound >= 1:
         # Delta in the paper
         flow_to_route = math.ceil(error_bound / phases) # ceil?
-
-        for u, v, attr in graph.edges: # TODO should we be iterating over reverse edges?
-            attr["length"] = 0 if (get_residual_cap(graph, u, v)) >= 3 * flow_to_route else 1
+        for u, v, attr in graph.edges(data=True): # TODO should we be iterating over reverse edges?
+            attr["length"] = 0 if (get_residual_cap(graph, u, v)) >= flow_to_route * 3 else 1
 
         construct_distance_metric(graph, end_node)
-        
+        visualize_graph(graph, weight="length", node_weight="distance")
+
         for _ in range(phases):
             
-            for u, v, attr in graph.edges: 
+            for u, v, attr in graph.edges(data=True):
                 resid_cap = get_residual_cap(graph, u, v)
                 resid_cap_reverse = get_residual_cap(graph, v, u)
                 if resid_cap >= 2 * flow_to_route and resid_cap < 3 * flow_to_route and resid_cap_reverse >= 3 * flow_to_route and u['distance'] == v['distance']:
@@ -198,7 +198,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                 else:
                     attr['length_bar'] = attr['length']
 
-            contracted_graph = construct_graph_contraction(graph)
+            contracted_graph = construct_graph_contraction(graph, start_node, end_node)
             total_routed_flow += compute_blocking_flow(contracted_graph, start_node, end_node, flow_to_route) 
             translate_flow_from_contraction_to_original(contracted_graph, graph)
             
@@ -213,6 +213,7 @@ def get_residual_cap(graph, u, v, capacity="capacity"):
     attr = graph.edges[u, v]
     return attr[capacity] - attr["flow"] + graph.edges[v, u]["flow"]
 
+
 def update_flow(graph, u, v, flow_val, capacity="capacity"):
     if flow_val < 0:
         update_flow(graph, v, u, -flow_val)
@@ -224,29 +225,24 @@ def update_flow(graph, u, v, flow_val, capacity="capacity"):
         graph.edges[v, u]["flow"] -= flow_val
     
     # forward edge
-    else if flow_val <= attr[capacity] - attr["flow"]:
+    elif flow_val <= attr[capacity] - attr["flow"]:
         attr["flow"] += flow_val
     
     else: 
         raise AssertionError("Cannot update flow value here")
-    
 
-
-
-def goldberg_rao_phase(graph, start_node, end_node, error_bound, num_phase_iterations):
-    pass
 
 def min_canonical_cut(graph, start_node, end_node, distance="distance"):
-    INF = graph.graph["inf"]
     max_distance = start_node[distance]
     distance_arr = [0 for _ in range(max_distance)]
 
-    for u, v, attr in G.edges: 
+    for u, v, attr in graph.edges(data=True):
 
-        if is_admissible_edge(u, v): 
+        if is_admissible_edge(u, v) and u[distance] <= max_distance:
             distance_arr[u[distance]] += get_residual_cap(graph, u, v)
     
     return min(distance_arr)
+
 
 def is_admissible_edge(u, v, distance="distance"):
 
@@ -267,7 +263,6 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
  
     
 def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
-
     if curr_node == end_node: 
         flow_val = max_flow_left
         for idx, node in enumerate(curr_path):
@@ -275,26 +270,23 @@ def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
                 continue
             flow_val = min(flow_val, get_residual_cap(graph, curr_path[idx-1], node))
             graph[curr_path[idx -1]][node]["on_blocking_flow"] = True
-
         for idx, node in enumerate(curr_path):
             if idx == 0:
                 continue
-            graph[curr_path[idx -1]][node]["flow"] = flow_val
+            graph[curr_path[idx - 1]][node]["flow"] = flow_val
 
         return flow_val
-
 
     for neighbor in graph.successors(curr_node):
         if not is_admissible_edge(curr_node, neighbor) or graph[curr_node][neighbor].get("is_visited", False):
             continue
         curr_path.append(neighbor)
-            path_found = blocking_flow_helper(graph, neighbor, curr_path, end_node, max_flow_left)
+        path_found = blocking_flow_helper(graph, neighbor, curr_path, end_node, max_flow_left)
         if path_found >= 0:
             return
     
     curr_path.pop()
     return -1
-
 
 
 def construct_graph_contraction(graph, start_node, end_node):
@@ -312,7 +304,7 @@ def construct_graph_contraction(graph, start_node, end_node):
 
         if start_node in scc["members"]:
             rep_vertex = start_node
-        else if end_node in scc["members"]:
+        elif end_node in scc["members"]:
             rep_vertex = end_node
         
         scc["representative"] = rep_vertex
@@ -374,17 +366,18 @@ def route_in_flow_tree(graph, curr_vertex):
     flow = max(curr_vertex['flow'], 0)
     for child in curr_vertex["in_children"]:
         child_flow = route_in_flow_tree(child)
-        if child_flow != 0
+        if child_flow != 0:
             update_flow(graph, child, curr_vertex, child_flow)
     del curr_vertex["in_children"]
     return flow
+
 
 def route_out_flow_tree(graph, curr_vertex):
 
     flow = max(-curr_vertex["flow"], 0)
     for child in curr_vertex["out_children"]:
         child_flow = route_out_flow_tree(child)
-        if child_flow != 0
+        if child_flow != 0:
             update_flow(graph, curr_vertex, child, child_flow)
     del curr_vertex["out_children"]
     del curr_vertex["flow"]
@@ -397,35 +390,33 @@ def construct_distance_metric(graph, end_node):
 
     INF = graph.graph["inf"]
     for node in graph:
-        node["distance"] = INF
+        graph.nodes[node]["distance"] = INF
 
-    end_node["distance"] = 0
-    n =  graph.number_of_nodes()
+    graph.nodes[end_node]["distance"] = 0
+    n = graph.number_of_nodes()
     buckets = [set() for _ in range(n)]
-
     bucket_idx = 0
+    buckets[0].add(end_node)
     while True:
-        while len(buckets[bucket_idx]) == 0 and bucket_idx < n:
-            idx += 1
-        if idx == n:
+        while bucket_idx < n and len(buckets[bucket_idx]) == 0:
+            bucket_idx += 1
+        if bucket_idx == n:
             break
-
-        vertex = buckets[bucket_idx][0]
-        buckets[bucket_idx].remove(vertex)
+        vertex = buckets[bucket_idx].pop()
         for neighbor in graph.predecessors(vertex):
-            length = graph[neighbor][vertex]['length']
-            
-            dist_vertex = vertex.get("distance")
-            dist_neighbor = neighbor.get("distance", None)
+            length = graph.edges[neighbor, vertex]['length']
+            dist_vertex = graph.nodes[vertex].get("distance")
+            dist_neighbor = graph.nodes[neighbor].get("distance", None)
             
             if dist_neighbor == INF or dist_neighbor > dist_vertex + length:
-                if dist_neighbor != -1:
+                if dist_neighbor != INF:
                     buckets[dist_neighbor].remove(neighbor)
                 dist_neighbor = dist_vertex + length
-                neighbor["distance"] = dist_neighbor
+                graph.nodes[neighbor]["distance"] = dist_neighbor
                 buckets[dist_neighbor].add(neighbor)
     return graph   
             
+
 
 def length_strongly_connected_components(G):
     """Generate nodes in strongly connected components of graph.
@@ -532,7 +523,7 @@ def condensation(G, scc=None):
     mapping = {}
     members = {}
     edge_members = {}
-    C = nx.DiGraph()
+    C = networkx.DiGraph()
     # Add mapping dict as graph attribute
     C.graph["mapping"] = mapping
     if len(G) == 0:
