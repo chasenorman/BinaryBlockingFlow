@@ -20,7 +20,6 @@ def visualize_graph(graph, weight="capacity", node_weight=None, filename="graph_
         alpha=0.5,
         edge_color="tab:red",
     )
-
     edge_labels = { (u, v): graph[u][v][weight] for (u, v) in graph.edges() if graph[u][v]["capacity"] != 0}
 
     if node_weight:
