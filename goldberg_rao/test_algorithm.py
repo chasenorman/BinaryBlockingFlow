@@ -45,7 +45,6 @@ def test_correctness():
         assert d_mf == gr_mf, f"Computed max flow in {name} graph is {d_mf}, but goldberg_rao function computed {gr_mf}"
     
 def basic_graph():
-    print("hello")
     G = nx.DiGraph()
     G.add_edge(0, 1, capacity=3.0)
     G.add_edge(0, 2, capacity=1.0)
