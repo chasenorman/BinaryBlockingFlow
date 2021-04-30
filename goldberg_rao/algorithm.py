@@ -201,7 +201,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             total_routed_flow += compute_blocking_flow(contracted_graph, start_node, end_node, flow_to_route) 
             translate_flow_from_contraction_to_original(contracted_graph, graph)
 
-            max_flow_upper_bound = min_canonical_cut(graph)
+            max_flow_upper_bound = min_canonical_cut(graph, start_node, end_node)
             if max_flow_upper_bound <= error_bound // 2:
                 while max_flow_upper_bound <= error_bound // 2:
                     error_bound //= 2
@@ -238,15 +238,14 @@ def min_canonical_cut(graph, start_node, end_node, distance="distance"):
     distance_arr = [0 for _ in range(max_distance)]
 
     for u, v, attr in graph.edges(data=True):
-        if is_admissible_edge(graph, u, v) and u[distance] <= max_distance:
+        if graph[u][distance] == graph[v][distance] - 1 and u[distance] <= max_distance:
             distance_arr[u[distance]] += get_residual_cap(graph, u, v)
     
     return min(distance_arr)
 
 
-def is_admissible_edge(graph, u, v, distance="distance"):
-
-    return graph[u][distance] == graph[v][distance] - 1
+def is_admissible_edge(graph, u, v, distance="distance", length="length"):
+    return graph[u][distance] == graph[v][distance] + graph[u][v][length]
 
 
 def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
@@ -329,9 +328,6 @@ def construct_graph_contraction(graph, start_node, end_node):
             for neighbor in graph.successors(curr_vertex):
                 if neighbor not in visited and graph[neighbor, curr_vertex]["length"] == 0:
                     curr_vertex["in_children"].append(neighbor)
-    construct_distance_metric(condensed_graph, end_node, length='capacity')
-    visualize_graph(condensed_graph, weight="capacity", node_weight="distance", filename="graph_out2.png")
-
     return condensed_graph
 
 
@@ -460,7 +456,6 @@ def length_strongly_connected_components(G):
                     else:
                         scc_queue.append(v)
 
-                
 
 def condensation(G, scc=None):
 
@@ -474,11 +469,12 @@ def condensation(G, scc=None):
     C.graph["mapping"] = mapping
     if len(G) == 0:
         return C
-    for i, component in enumerate(scc):
+    i = 0
+    for component in enumerate(scc):
         members[i] = component
         mapping.update((n, i) for n in component)
-
-    number_of_components = i + 1
+        i += 1
+    number_of_components = i
     C.add_nodes_from(range(number_of_components))
     C.add_edges_from(
         (mapping[u], mapping[v]) for u, v in G.edges() if mapping[u] != mapping[v]
