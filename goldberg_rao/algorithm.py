@@ -1,4 +1,4 @@
-import networkx
+import networkx as nx
 from abc import ABC
 from networkx.algorithms.flow.utils import build_residual_network
 import math
@@ -292,7 +292,6 @@ def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
 def construct_graph_contraction(graph, start_node, end_node):
 
     condensed_graph = condensation(graph)
-
     # construct in-tree and out-tree
 
     for scc, scc_attr in condensed_graph.nodes(data=True):
@@ -464,7 +463,7 @@ def condensation(G, scc=None):
     mapping = {}
     members = {}
     edge_members = {}
-    C = networkx.DiGraph()
+    C = nx.DiGraph()
     # Add mapping dict as graph attribute
     C.graph["mapping"] = mapping
     if len(G) == 0:
@@ -482,6 +481,7 @@ def condensation(G, scc=None):
     for u, v, attr in G.edges(data=True):
         if mapping[u] != mapping[v]:
             if (mapping[u], mapping[v]) in edge_members.keys():
+               edge_members[(mapping[u], mapping[v])]["members"].append((u, v, attr))
                edge_members[(mapping[u], mapping[v])]["members"].add((u, v))
                edge_members[(mapping[u], mapping[v])]["capacity"] += get_residual_cap(G, u, v)
             else:
@@ -493,10 +493,10 @@ def condensation(G, scc=None):
         
         
     # Add a list of members (ie original nodes) to each node (ie scc) in C.
-    networkx.set_node_attributes(C, members, "members")
+    nx.set_node_attributes(C, members, "members")
 
     # Add edge attributes to each node 
-    networkx.set_edge_attributes(C, edge_members)
+    nx.set_edge_attributes(C, edge_members)
     return C
 
 
