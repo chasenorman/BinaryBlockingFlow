@@ -1,4 +1,4 @@
-import networkx
+import networkx as nx
 from abc import ABC
 from networkx.algorithms.flow.utils import build_residual_network
 import math
@@ -203,7 +203,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             translate_flow_from_contraction_to_original(contracted_graph, graph)
             
             if min_canonical_cut(graph) <= error_bound // 2:
-                break 
+                break
             
         error_bound //= 2
     return 1
@@ -295,19 +295,19 @@ def construct_graph_contraction(graph, start_node, end_node):
     
     # construct in-tree and out-tree
 
-    for scc in condensed_graph:
-
-        if len(scc["members"]) < 2:
+    for scc in condensed_graph.nodes:
+        print(condensed_graph[scc])
+        if len(condensed_graph[scc]["members"]) < 2:
             continue
 
-        rep_vertex = scc["members"][0]
+        rep_vertex = condensed_graph[scc]["members"][0]
 
-        if start_node in scc["members"]:
+        if start_node in condensed_graph[scc]["members"]:
             rep_vertex = start_node
-        elif end_node in scc["members"]:
+        elif end_node in condensed_graph[scc]["members"]:
             rep_vertex = end_node
         
-        scc["representative"] = rep_vertex
+        condensed_graph[scc]["representative"] = rep_vertex
          # out tree construction 
 
         children_queue = [rep_vertex]
@@ -490,14 +490,14 @@ def length_strongly_connected_components(G):
                     preorder[v] = i
                 done = True
                 for w in G[v]:
-                    if G[v, w]["length"] == 0 and w not in preorder:
+                    if G.edges[v, w]["length"] == 0 and w not in preorder:
                         queue.append(w)
                         done = False
                         break
                 if done:
                     lowlink[v] = preorder[v]
                     for w in G[v]:
-                        if G[v, w]["length"] == 0 and w not in scc_found:
+                        if G.edges[v, w]["length"] == 0 and w not in scc_found:
                             if preorder[w] > preorder[v]:
                                 lowlink[v] = min([lowlink[v], lowlink[w]])
                             else:
@@ -523,7 +523,7 @@ def condensation(G, scc=None):
     mapping = {}
     members = {}
     edge_members = {}
-    C = networkx.DiGraph()
+    C = nx.DiGraph()
     # Add mapping dict as graph attribute
     C.graph["mapping"] = mapping
     if len(G) == 0:
@@ -537,16 +537,16 @@ def condensation(G, scc=None):
     C.add_edges_from(
         (mapping[u], mapping[v]) for u, v in G.edges() if mapping[u] != mapping[v]
     )
-    for u, v, attr in G.edges:
+    for u, v, attr in G.edges(data=True):
         if mapping[u] != mapping[v]:
             if (mapping[u], mapping[v]) in edge_members.keys():
-               edge_members[(mapping[u], mapping[v])]["members"].add((u, v, attr))
+               edge_members[(mapping[u], mapping[v])]["members"].append((u, v, attr))
                edge_members[(mapping[u], mapping[v])]["capacity"] += get_residual_cap(G, u, v)
             else:
                 edge_members[(mapping[u], mapping[v])] = {}
                 edge_members[(mapping[u], mapping[v])]["flow"] = 0
                 edge_members[(mapping[u], mapping[v])]["on_blocking_flow"] = 0
-                edge_members[(mapping[u], mapping[v])]["members"] = set((u, v, attr))
+                edge_members[(mapping[u], mapping[v])]["members"] = [(u, v, attr)]
                 edge_members[(mapping[u], mapping[v])]["capacity"] = get_residual_cap(G, u, v)
         
         
