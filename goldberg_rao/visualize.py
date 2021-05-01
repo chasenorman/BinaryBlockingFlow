@@ -26,7 +26,7 @@ def visualize_graph(graph, weight="capacity", node_weight=None, filename="graph_
         node_weight = { u: graph.nodes[u][node_weight] for u in graph }
         nx.draw_networkx_labels(graph, pos, node_weight)
     # some math labels
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels, font_size=22, font_color="tab:blue")
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels, font_size=10, font_color="tab:blue")
 
     plt.tight_layout()
     plt.axis("off")

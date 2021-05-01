@@ -247,7 +247,6 @@ def min_canonical_cut(graph, start_node, end_node, distance="distance"):
 def is_admissible_edge(graph, u, v, distance="distance", length="length"):
     return graph[u][distance] == graph[v][distance] + graph[u][v][length]
 
-
 def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
     
     curr_node = start_node
@@ -469,7 +468,7 @@ def condensation(G, scc=None):
     if len(G) == 0:
         return C
     i = 0
-    for component in enumerate(scc):
+    for component in scc:
         members[i] = component
         mapping.update((n, i) for n in component)
         i += 1
@@ -481,7 +480,6 @@ def condensation(G, scc=None):
     for u, v, attr in G.edges(data=True):
         if mapping[u] != mapping[v]:
             if (mapping[u], mapping[v]) in edge_members.keys():
-               edge_members[(mapping[u], mapping[v])]["members"].append((u, v, attr))
                edge_members[(mapping[u], mapping[v])]["members"].add((u, v))
                edge_members[(mapping[u], mapping[v])]["capacity"] += get_residual_cap(G, u, v)
             else:
