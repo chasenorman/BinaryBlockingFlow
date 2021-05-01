@@ -195,6 +195,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             if graph.nodes[start_node]["distance"] == INF:
                 graph.graph['flow_value'] = total_routed_flow
                 return graph
+
             max_flow_upper_bound = min_canonical_cut(graph, start_node)
             if max_flow_upper_bound <= error_bound // 2:
                 while max_flow_upper_bound <= error_bound // 2 and error_bound >= 1:
@@ -210,12 +211,19 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                 else:
                     attr['length'] = attr['_length']
             contracted_graph = construct_graph_contraction(graph, start_node, end_node)
-            flow_routed = dinitz_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
+            flow_routed = flow_to_route
+            if contracted_graph.graph["start_mapping"] != contracted_graph.graph["end_mapping"]:
+                flow_routed = dinitz_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
+
+
+
             total_routed_flow += flow_routed
+
             if flow_routed == 0:
                 graph.graph['flow_value'] = total_routed_flow
                 return graph
-            translate_flow_from_contraction_to_original(contracted_graph, graph)
+
+            translate_flow_from_contraction_to_original(contracted_graph, graph, start_node, end_node, flow_routed )
 
     graph.graph['flow_value'] = total_routed_flow
     return graph
@@ -280,8 +288,9 @@ def min_canonical_cut(graph, start_node, distance="distance"):
     :return:
     """
     max_distance = graph.nodes[start_node][distance]
+    if max_distance == 0:
+        return float("inf")
     distance_arr = [0 for _ in range(max_distance)]
-
     for u, v, attr in graph.edges(data=True):
         if not is_at_capacity(graph, u, v) and graph.nodes[u][distance] == graph.nodes[v][distance] + 1 and graph.nodes[v][distance] < max_distance:
             distance_arr[graph.nodes[v][distance]] += get_residual_cap(graph, u, v)
@@ -291,6 +300,7 @@ def min_canonical_cut(graph, start_node, distance="distance"):
 def is_admissible_edge(graph, u, v, distance="distance", length="length"):
     return graph.nodes[u][distance] == graph.nodes[v][distance] + graph[u][v][length]
 
+
 def construct_graph_contraction(graph, start_node, end_node):
 
     condensed_graph = condensation(graph)
@@ -298,19 +308,18 @@ def construct_graph_contraction(graph, start_node, end_node):
 
     for scc, scc_attr in condensed_graph.nodes(data=True):
 
+
         rep_vertex = next(iter(scc_attr["members"]))
         if start_node in scc_attr["members"]:
-            rep_vertex = start_node
             condensed_graph.graph["start_mapping"] = scc
-
-        elif end_node in scc_attr["members"]:
-            rep_vertex = end_node
+        if end_node in scc_attr["members"]:
             condensed_graph.graph["end_mapping"] = scc
 
         if len(scc_attr["members"]) < 2:
             continue
+
         scc_attr["representative"] = rep_vertex
-         # out tree construction
+        # out tree construction
         children_queue = [rep_vertex]
         visited = set(children_queue)
         while len(children_queue) != 0:
@@ -340,14 +349,16 @@ def construct_graph_contraction(graph, start_node, end_node):
     return condensed_graph
 
 
-def translate_flow_from_contraction_to_original(contraction, original):
+def translate_flow_from_contraction_to_original(contraction, original, start_node, end_node, flow_routed):
 
     for node in original:
         original.nodes[node]["flow"] = 0
+    original.nodes[start_node]["flow"] = flow_routed
+    original.nodes[end_node]["flow"] = -flow_routed
     # assign flows to edges and the flow in - out for the contracted graph
     for contract_u, contract_v, contraction_edge in contraction.edges(data=True):
         remaining_edge_flow = contraction_edge["flow"]
-        if not contraction_edge["on_blocking_flow"]:
+        if remaining_edge_flow == 0:
             continue
         for original_edge in contraction_edge["members"]:
             
@@ -366,8 +377,9 @@ def translate_flow_from_contraction_to_original(contraction, original):
 
         if len(attr["members"]) >= 2:
             rep_vertex = attr["representative"]
-            route_in_flow_tree(original, rep_vertex)
-            route_out_flow_tree(original, rep_vertex)
+            flow_in = route_in_flow_tree(original, rep_vertex)
+            flow_out = route_out_flow_tree(original, rep_vertex)
+            assert flow_in == flow_out
 
 
 def route_in_flow_tree(graph, curr_vertex):
@@ -521,5 +533,3 @@ def condensation(G, scc=None):
     # Add edge attributes to each node 
     nx.set_edge_attributes(C, edge_members)
     return C
-
-    

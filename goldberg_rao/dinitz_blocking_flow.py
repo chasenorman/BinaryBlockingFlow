@@ -5,7 +5,7 @@ def dinitz_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
     """
     Runs the dinitz blocking flow.
 
-    :param graph: NetworkX Graph
+    :param graph: NetworkX Graph - must be acyclic!
     :param start_node: Node where we start.
     :param end_node: Node where we end.
     :param maximum_flow_to_route: Maximum amount of flow that we can route.
@@ -28,18 +28,14 @@ def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
             if idx == 0:
                 continue
             flow_val = min(flow_val, get_residual_cap(graph, curr_path[idx - 1], node, include_reverse_flow=False))
-            graph[curr_path[idx - 1]][node]["on_blocking_flow"] = True
         for idx, node in enumerate(curr_path):
             if idx == 0:
                 continue
             graph[curr_path[idx - 1]][node]["flow"] += flow_val
-            if not get_residual_cap(graph, curr_path[idx - 1], node, include_reverse_flow=False) == 0:
-                graph[curr_path[idx - 1]][node]["is_visited"] = False
         return flow_val
 
     for neighbor in graph.successors(curr_node):
-        if graph[curr_node][neighbor].get("is_visited", False) or get_residual_cap(graph, curr_node, neighbor,
-                                                                                   include_reverse_flow=False) == 0:
+        if get_residual_cap(graph, curr_node, neighbor, include_reverse_flow=False) == 0:
             continue
         curr_path.append(neighbor)
         path_found = blocking_flow_helper(graph, neighbor, curr_path, end_node, max_flow_left)

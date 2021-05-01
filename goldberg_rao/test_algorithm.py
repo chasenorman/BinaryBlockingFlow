@@ -9,7 +9,7 @@ from networkx.generators.classic import balanced_tree, barbell_graph, binomial_t
                                         complete_graph, cycle_graph, path_graph, star_graph
 from networkx.drawing.nx_pylab import draw_networkx
 
-random.seed(2)
+random.seed()
 
 
 def test_correctness():
@@ -32,7 +32,6 @@ def test_correctness():
             G_dinitz.edges[u, v]["capacity"] = cap
             G_gr.edges[u, v]["capacity"] = cap
 
-
         # Pick random start and end node
         start_node = randint(0, len(G_dinitz.nodes)-1)
         end_node = randint(0, len(G_dinitz.nodes)-1)
@@ -46,7 +45,8 @@ def test_correctness():
         d_mf = R_dinitz.graph["flow_value"]
         gr_mf = R_gr.graph["flow_value"]
         assert d_mf == gr_mf, f"Computed max flow in {name} graph is {d_mf}, but goldberg_rao function computed {gr_mf}"
-    
+
+
 def basic_graph():
     G = nx.DiGraph()
     G.add_edge(0, 1, capacity=3.0)
@@ -59,7 +59,3 @@ def basic_graph():
     G.add_edge(5, 6, capacity=3.0)
     
     return G
-
-
-
-    
