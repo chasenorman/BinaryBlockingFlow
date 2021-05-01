@@ -1,3 +1,4 @@
+import random
 from random import randint
 
 from .algorithm import goldberg_rao
@@ -7,6 +8,8 @@ from networkx.algorithms.flow import dinitz
 from networkx.generators.classic import balanced_tree, barbell_graph, binomial_tree, \
                                         complete_graph, cycle_graph, path_graph, star_graph
 from networkx.drawing.nx_pylab import draw_networkx
+
+random.seed(2)
 
 
 def test_correctness():
