@@ -291,7 +291,6 @@ def min_canonical_cut(graph, start_node, distance="distance"):
 def is_admissible_edge(graph, u, v, distance="distance", length="length"):
     return graph.nodes[u][distance] == graph.nodes[v][distance] + graph[u][v][length]
 
-
 def construct_graph_contraction(graph, start_node, end_node):
 
     condensed_graph = condensation(graph)
@@ -522,22 +521,5 @@ def condensation(G, scc=None):
     # Add edge attributes to each node 
     nx.set_edge_attributes(C, edge_members)
     return C
-
-
-
-
-                    
-
-
-
-
-
-
-
-        
-
-
-    
-    
 
     
