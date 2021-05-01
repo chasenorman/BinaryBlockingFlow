@@ -101,19 +101,59 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 
 
 def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
-    l = list(graph.edges(data=True))
-    for u,v,attr in l:
-        if attr["flow"] == 0:
-            graph.remove_edge(u,v)
-    for u in graph.nodes:
-        pass
-        #print(graph.nodes[u]["excess"])
-    visualize.visualize_graph(graph, weight="flow", filename="2.png")
-    pass
+    return graph
+
+def is_flow(graph, start_node, end_node):
+    for u,v,attr in graph.edges(data=True):
+        if attr["flow"] > attr["capacity"]:
+            return False
+        if attr["flow"] < 0:
+            return False
+    for v in graph.nodes:
+        if v == start_node or v == end_node:
+            continue
+        in_flow = 0
+        out_flow = 0
+        for u in graph.predecessors(v):
+            in_flow += graph.edges[u, v]["flow"]
+        for w in graph.successors(v):
+            out_flow += graph.edges[v, w]["flow"]
+        if in_flow != out_flow:
+            return False
+    return True
 
 if __name__ == "__main__":
     import random
-    G = nx.gnp_random_graph(7, 0.5, directed=True)
-    DAG = nx.DiGraph([(u,v,{'capacity':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
-    visualize.visualize_graph(DAG, weight="capacity", filename="1.png")
-    compute_blocking_flow(DAG, 0, 6, 0)
+    for i in range(100):
+        G = nx.gnp_random_graph(100, 0.5, directed=True)
+        DAG = nx.DiGraph([(u,v,{'capacity':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
+        #visualize.visualize_graph(DAG, weight="capacity", filename="1.png")
+
+        graph = compute_blocking_flow(DAG, 0, 6, 0)
+        # l = list(graph.edges(data=True))
+        # for u, v, attr in l:
+        #     if attr["flow"] == 0:
+        #         graph.remove_edge(u, v)
+        # for u in graph.nodes:
+        #     pass
+        #     # print(graph.nodes[u]["excess"])
+        # visualize.visualize_graph(graph, weight="flow", filename="2.png")
+
+        visited = [False] * (graph.number_of_nodes())
+
+        queue = []
+        queue.append(0)
+        visited[0] = True
+
+        while queue:
+            s = queue.pop(0)
+            for i in graph.successors(s):
+                if graph.edges[s, i]["capacity"] - graph.edges[s, i]["flow"] != 0:
+                    if visited[i] == False:
+                        queue.append(i)
+                        visited[i] = True
+
+        if is_flow(graph, 0, 6) and not visited[6]:
+            print("BLOCKING FLOW")
+        else:
+            print("NOT BLOCKING FLOW")
