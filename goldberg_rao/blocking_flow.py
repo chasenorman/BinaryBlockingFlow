@@ -25,13 +25,16 @@ class dynamic_tree():
 
 class finger_tree():
 
-    def __init__(self, graph):
+    def __init__(self, graph, start_node, end_node):
         self.graph = graph
+        self.start_node = start_node
+        self.end_node = end_node
         self.L = list(nx.algorithms.dag.topological_sort(graph))
 
     def first_active(self):
         for v in self.L:
-            if self.graph.nodes[v]["excess"] > 0:
+            if v != self.start_node and v != self.end_node and \
+                    self.graph.nodes[v]["excess"] > 0:
                 return v
 
     def move_to_front(self, v):
@@ -61,7 +64,7 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 
     def pull(u, v):
         # TODO if there are residuals, these are not set properly.
-        delta = min(graph.nodes[v]["excess"], graph.edges[u, v]["capacity"])
+        delta = min(graph.nodes[v]["excess"], graph.edges[u, v]["flow"])
         graph.edges[u, v]["flow"] -= delta
         #graph[v, u]["on_blocking_flow"] += delta
         graph.nodes[v]["excess"] -= delta
@@ -86,9 +89,9 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 
         raise AssertionError('How did we get here?')
 
-    L = finger_tree(graph)
+    L = finger_tree(graph, start_node, end_node)
     v = L.first_active()
-    while v:
+    while v is not None:
         discharge(v)
         if graph.nodes[v]["blocked"]:
             L.move_to_front(v)
@@ -102,13 +105,15 @@ def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
     for u,v,attr in l:
         if attr["flow"] == 0:
             graph.remove_edge(u,v)
-
+    for u in graph.nodes:
+        pass
+        #print(graph.nodes[u]["excess"])
     visualize.visualize_graph(graph, weight="flow", filename="2.png")
     pass
 
 if __name__ == "__main__":
     import random
-    G = nx.gnp_random_graph(10, 0.5, directed=True)
+    G = nx.gnp_random_graph(7, 0.5, directed=True)
     DAG = nx.DiGraph([(u,v,{'capacity':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
     visualize.visualize_graph(DAG, weight="capacity", filename="1.png")
-    compute_blocking_flow(DAG, 0, 9, 0)
+    compute_blocking_flow(DAG, 0, 6, 0)
