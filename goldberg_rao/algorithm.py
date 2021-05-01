@@ -155,7 +155,6 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
         raise nx.NetworkXError(f"node {str(t)} not in graph")
     if s == t:
         raise nx.NetworkXError("source and sink are the same node")
-
     if residual is None:
         R = build_residual_network(G, capacity)
     else:
@@ -168,11 +167,11 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     start_node = s
     end_node = t
     graph = R
-    max_capacity = max([attr[capacity] for u, v, attr in graph.edges(data=True)])
+    sum_capacity = sum([attr[capacity] for u, v, attr in graph.edges(data=True)])
     m = graph.number_of_edges()
     n = graph.number_of_nodes()
     # F in the algorithm
-    error_bound = n * max_capacity
+    error_bound = sum_capacity
     INF = graph.graph.get("inf", float("inf"))
 
     # Lambda in the algorithm
@@ -185,6 +184,8 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
         for _ in range(phases):
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
+                    # edges that are at capacity disappear from this algorithm on edges with strictly positive resid
+                    # capacity are considered
                     if "_length" in attr:
                         del attr["_length"]
                     if "length" in attr:
@@ -201,9 +202,13 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                 while max_flow_upper_bound <= error_bound // 2 and error_bound >= 1:
                     error_bound //= 2
                 break
+
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
+
+
                     continue
+
                 resid_cap = get_residual_cap(graph, u, v)
                 resid_cap_reverse = get_residual_cap(graph, v, u)
                 if 2 * flow_to_route <= resid_cap < 3 * flow_to_route <= resid_cap_reverse and graph.nodes[u]['distance'] == graph.nodes[v]['distance']:
@@ -212,10 +217,12 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                     attr['length'] = attr['_length']
             contracted_graph = construct_graph_contraction(graph, start_node, end_node)
             flow_routed = flow_to_route
+            """
+            if the start and end notes already in the same component, we don't need a blocking flow since 
+            we can already route delta flow through that component.
+            """
             if contracted_graph.graph["start_mapping"] != contracted_graph.graph["end_mapping"]:
                 flow_routed = dinitz_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
-
-
 
             total_routed_flow += flow_routed
 
@@ -264,16 +271,19 @@ def update_flow(graph, u, v, flow_val, capacity="capacity"):
         update_flow(graph, v, u, -flow_val)
         return
     attr = graph[u][v]
+    attr_r = graph[v][u]
     # residual edge
-    if attr[capacity] == 0:
-        graph[v][u]["flow"] -= flow_val
-    
+
+    foward_cap_remaining = attr[capacity] - attr["flow"]
+
     # forward edge
-    elif flow_val <= attr[capacity] - attr["flow"]:
-        attr["flow"] += flow_val
-    
-    else:
-        raise AssertionError("Cannot update flow value here")
+    attr["flow"] += min(flow_val, foward_cap_remaining)
+    flow_val -= attr["flow"]
+
+    if flow_val > 0:
+        if flow_val > attr_r["flow"]:
+            raise AssertionError("Cannot update flow value here. If this code is hit, then something is wrong")
+        attr_r["flow"] -= flow_val
 
 
 def min_canonical_cut(graph, start_node, distance="distance"):
@@ -307,7 +317,6 @@ def construct_graph_contraction(graph, start_node, end_node):
     # construct in-tree and out-tree
 
     for scc, scc_attr in condensed_graph.nodes(data=True):
-
 
         rep_vertex = next(iter(scc_attr["members"]))
         if start_node in scc_attr["members"]:
@@ -379,7 +388,8 @@ def translate_flow_from_contraction_to_original(contraction, original, start_nod
             rep_vertex = attr["representative"]
             flow_in = route_in_flow_tree(original, rep_vertex)
             flow_out = route_out_flow_tree(original, rep_vertex)
-            assert flow_in == flow_out
+            if flow_out != flow_in:
+                raise AssertionError("Flow in does not equal to flow out. If this error is raised, then something is wrong")
 
 
 def route_in_flow_tree(graph, curr_vertex):

@@ -9,8 +9,6 @@ from networkx.generators.classic import balanced_tree, barbell_graph, binomial_t
                                         complete_graph, cycle_graph, path_graph, star_graph
 from networkx.drawing.nx_pylab import draw_networkx
 
-random.seed()
-
 
 def test_correctness():
     # note: in the future can restrict all graphs to have the same number of nodes, for analysis
