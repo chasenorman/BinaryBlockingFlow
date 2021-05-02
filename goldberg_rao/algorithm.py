@@ -205,10 +205,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
 
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
-
-
                     continue
-
                 resid_cap = get_residual_cap(graph, u, v)
                 resid_cap_reverse = get_residual_cap(graph, v, u)
                 if 2 * flow_to_route <= resid_cap < 3 * flow_to_route <= resid_cap_reverse and graph.nodes[u]['distance'] == graph.nodes[v]['distance']:
