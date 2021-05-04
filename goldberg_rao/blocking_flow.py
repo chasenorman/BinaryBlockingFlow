@@ -116,7 +116,7 @@ def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
             graph.nodes[v]["excess"] -= delta
             graph.nodes[u]["excess"] += delta
             graph.edges[u, v]["flow"] -= delta
-    return graph
+    return min(X, maximum_flow_to_route)
 
 def is_flow(graph, start_node, end_node):
     for u,v,attr in graph.edges(data=True):
