@@ -2,6 +2,7 @@ import time
 import math
 
 from .dinitz_blocking_flow import dinitz_blocking_flow
+from .blocking_flow import compute_blocking_flow
 from .visualize import visualize_graph
 
 import networkx as nx
@@ -225,8 +226,8 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             we can already route delta flow through that component.
             """
             if contracted_graph.graph["start_mapping"] != contracted_graph.graph["end_mapping"]:
-                flow_routed = dinitz_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
-                
+                flow_routed = compute_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
+
             total_routed_flow += flow_routed
 
             if flow_routed == 0:

@@ -1,5 +1,4 @@
 import networkx as nx
-import visualize
 
 class dynamic_tree():
     def find_root(self, v):
@@ -60,7 +59,6 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
         graph.nodes[u]["excess"] -= delta
 
     def pull(u, v):
-        # TODO if there are residuals, these are not set properly.
         delta = min(graph.nodes[v]["excess"], graph.edges[u, v]["flow"])
         graph.edges[u, v]["flow"] -= delta
         graph.nodes[v]["excess"] -= delta
