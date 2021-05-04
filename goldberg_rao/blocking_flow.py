@@ -1,5 +1,4 @@
 import networkx as nx
-import visualize
 
 class dynamic_tree():
     def find_root(self, v):
