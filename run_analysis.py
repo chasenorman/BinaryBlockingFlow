@@ -20,6 +20,9 @@ if verbose:
             print(arg,)
 else:   
     vprint = lambda *a: None
+
+names = ["complete_graph", "binary_tree", "balanced_barbell_graph", "binomial_tree", "cycle_graph",
+         "path_graph", "star_graph"]
             
 def run_analysis_n_nodes(n, unit_cap, n_runs=5):
     print(f"Running analysis for {n} nodes...")
@@ -69,12 +72,9 @@ def run_analysis_n_nodes(n, unit_cap, n_runs=5):
 
     return results_gr, results_dinitz
 
-if __name__ == "__main__":
-    names = ["complete_graph", "binary_tree", "balanced_barbell_graph", "binomial_tree", "cycle_graph",
-             "path_graph", "star_graph"]
-    
+def main():
     output_filename = "analysis_results"
-    n_nodes = [int(n) for n in np.logspace(1, 5, num=10)]
+    n_nodes = [int(n) for n in np.logspace(1, 2, num=5)]
     unit_results_gr = {}
     unit_results_dinitz = {}
     #rand_cap_results_gr = {}
@@ -103,4 +103,6 @@ if __name__ == "__main__":
     plt.legend()
     plt.plot()
     """  
-
+    
+if __name__ == "__main__":
+    main()
