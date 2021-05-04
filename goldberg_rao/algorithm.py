@@ -1,9 +1,12 @@
+import time
+import math
+
+from .dinitz_blocking_flow import dinitz_blocking_flow
+from .visualize import visualize_graph
+
 import networkx as nx
 from abc import ABC
 from networkx.algorithms.flow.utils import build_residual_network
-import math
-from .dinitz_blocking_flow import dinitz_blocking_flow
-from .visualize import visualize_graph
 
 """
 Implementation of the Goldberg Rao Algorithm: 
@@ -220,7 +223,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             """
             if contracted_graph.graph["start_mapping"] != contracted_graph.graph["end_mapping"]:
                 flow_routed = dinitz_blocking_flow(contracted_graph, contracted_graph.graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
-
+                
             total_routed_flow += flow_routed
 
             if flow_routed == 0:
@@ -230,6 +233,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             translate_flow_from_contraction_to_original(contracted_graph, graph, start_node, end_node, flow_routed )
 
     graph.graph['flow_value'] = total_routed_flow
+
     return graph
 
 
