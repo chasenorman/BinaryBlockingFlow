@@ -21,12 +21,19 @@ if verbose:
 else:   
     vprint = lambda *a: None
 
-names = ["complete_graph", "binary_tree", "balanced_barbell_graph", "binomial_tree", "cycle_graph",
+"""names = ["complete_graph", "binary_tree", "balanced_barbell_graph", "binomial_tree", "cycle_graph",
+         "path_graph", "star_graph"]"""
+
+names = ["binary_tree", "binomial_tree", "cycle_graph",
          "path_graph", "star_graph"]
             
 def run_analysis_n_nodes(n, unit_cap, n_runs=5):
     print(f"Running analysis for {n} nodes...")
-    graphs = [lambda: complete_graph(n), lambda: balanced_tree(2, int(round(np.log2(n)))), lambda: barbell_graph(int(round(n/2)), 1),
+    """graphs = [lambda: complete_graph(n), lambda: balanced_tree(2, int(round(np.log2(n)))), lambda: barbell_graph(int(round(n/2)), 1),
+              lambda: binomial_tree(int(round(np.log2(n)))), lambda: cycle_graph(n),
+              lambda: path_graph(n), lambda: star_graph(n)]"""
+
+    graphs = [lambda: balanced_tree(2, int(round(np.log2(n)))),
               lambda: binomial_tree(int(round(np.log2(n)))), lambda: cycle_graph(n),
               lambda: path_graph(n), lambda: star_graph(n)]
     results_gr = {}
@@ -74,7 +81,7 @@ def run_analysis_n_nodes(n, unit_cap, n_runs=5):
 
 def main():
     output_filename = "analysis_results"
-    n_nodes = [int(n) for n in np.logspace(1, 2, num=5)]
+    n_nodes = [int(n) for n in np.logspace(1, 3.1, num=15)]
     unit_results_gr = {}
     unit_results_dinitz = {}
     #rand_cap_results_gr = {}
@@ -86,12 +93,13 @@ def main():
 
     for name in names:
         plt.plot(n_nodes, [unit_results_gr[n][name] for n in n_nodes], label=f"{name}, goldberg-rao")
-        plt.plot(n_nodes, [unit_results_dinitz[n][name] for n in n_nodes], label=f"{name}, dinitz")
+        #plt.plot(n_nodes, [unit_results_dinitz[n][name] for n in n_nodes], label=f"{name}, dinitz")
     plt.title("Runtime of goldberg rao vs. dinitz in seconds with unit capacities")
     plt.xlabel("Number of nodes")
     plt.ylabel("Runtime (seconds)")
     plt.legend()
     plt.plot()
+    plt.show()
 
     """
     for name in names:
