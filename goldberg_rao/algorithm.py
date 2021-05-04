@@ -329,30 +329,38 @@ def construct_graph_contraction(graph, start_node, end_node):
         scc_attr["representative"] = rep_vertex
         # out tree construction
         children_queue = [rep_vertex]
-        visited = set(children_queue)
+        not_visited = set(scc_attr["members"])
+        not_visited.remove(rep_vertex)
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
             graph.nodes[curr_vertex]["out_children"] = []
-            for neighbor in scc_attr["members"]:
+            to_remove = set()
+            for neighbor in not_visited:
                 if not graph.has_edge(curr_vertex, neighbor) or is_at_capacity(graph, curr_vertex, neighbor):
                     continue
-                if neighbor not in visited and graph.edges[curr_vertex, neighbor]["length"] == 0:
-                    visited.add(neighbor)
+                if graph.edges[curr_vertex, neighbor]["length"] == 0:
+                    to_remove.add(neighbor)
                     graph.nodes[curr_vertex]["out_children"].append(neighbor)
                     children_queue.append(neighbor)
+            not_visited.difference_update(to_remove)
         # in tree construction
         children_queue = [rep_vertex]
-        visited = set(children_queue)
+        not_visited = set(scc_attr["members"])
+        not_visited.remove(rep_vertex)
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
             graph.nodes[curr_vertex]["in_children"] = []
-            for neighbor in scc_attr["members"]:
+            to_remove = set()
+
+            for neighbor in not_visited:
                 if not graph.has_edge(neighbor, curr_vertex) or is_at_capacity(graph, neighbor, curr_vertex):
                     continue
-                if neighbor not in visited and graph.edges[neighbor, curr_vertex]["length"] == 0:
-                    visited.add(neighbor)
+                if graph.edges[neighbor, curr_vertex]["length"] == 0:
+                    to_remove.add(neighbor)
+
                     graph.nodes[curr_vertex]["in_children"].append(neighbor)
                     children_queue.append(neighbor)
+            not_visited.difference_update(to_remove)
 
     return condensed_graph
 
@@ -462,7 +470,6 @@ def length_strongly_connected_components(G):
     scc_found = set()
     scc_queue = []
     i = 0  # Preorder counter
-
     for source in G:
         if source not in scc_found:
             queue = [source]
@@ -530,7 +537,6 @@ def condensation(G, scc=None):
             else:
                 edge_members[(mapping[u], mapping[v])] = {}
                 edge_members[(mapping[u], mapping[v])]["flow"] = 0
-                edge_members[(mapping[u], mapping[v])]["on_blocking_flow"] = 0
                 edge_members[(mapping[u], mapping[v])]["members"] = {(u, v)}
                 edge_members[(mapping[u], mapping[v])]["capacity"] = get_residual_cap(G, u, v)
                 edge_members[(mapping[u], mapping[v])]["length"] = G[u][v]["length"]

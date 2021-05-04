@@ -23,6 +23,7 @@ class dynamic_tree():
     def cut(self, v):
         pass
 
+
 class finger_tree():
 
     def __init__(self, graph, start_node, end_node):
