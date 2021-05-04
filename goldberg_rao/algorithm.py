@@ -180,7 +180,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     prev_error_bound = float('inf')
     while error_bound >= 1:
         # Delta in the paper
-        assert error_bound < prev_error_bound
+        assert prev_error_bound == float("inf") or error_bound <= prev_error_bound // 2
         flow_to_route = math.ceil(error_bound / num_iterations_in_phase)
 
         for _ in range(num_iterations_in_phase):
@@ -333,10 +333,10 @@ def construct_graph_contraction(graph, start_node, end_node):
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
             graph.nodes[curr_vertex]["out_children"] = []
-            for neighbor in graph.successors(curr_vertex):
-                if is_at_capacity(graph, curr_vertex, neighbor):
+            for neighbor in scc_attr["members"]:
+                if not graph.has_edge(curr_vertex, neighbor) or is_at_capacity(graph, curr_vertex, neighbor):
                     continue
-                if neighbor not in visited and neighbor in scc_attr["members"] and graph.edges[curr_vertex, neighbor]["length"] == 0:
+                if neighbor not in visited and graph.edges[curr_vertex, neighbor]["length"] == 0:
                     visited.add(neighbor)
                     graph.nodes[curr_vertex]["out_children"].append(neighbor)
                     children_queue.append(neighbor)
@@ -346,10 +346,10 @@ def construct_graph_contraction(graph, start_node, end_node):
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
             graph.nodes[curr_vertex]["in_children"] = []
-            for neighbor in graph.predecessors(curr_vertex):
-                if is_at_capacity(graph, neighbor, curr_vertex):
+            for neighbor in scc_attr["members"]:
+                if not graph.has_edge(neighbor, curr_vertex) or is_at_capacity(graph, neighbor, curr_vertex):
                     continue
-                if neighbor not in visited and neighbor in scc_attr["members"] and graph.edges[neighbor, curr_vertex]["length"] == 0:
+                if neighbor not in visited and graph.edges[neighbor, curr_vertex]["length"] == 0:
                     visited.add(neighbor)
                     graph.nodes[curr_vertex]["in_children"].append(neighbor)
                     children_queue.append(neighbor)
