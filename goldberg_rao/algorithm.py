@@ -175,13 +175,15 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     INF = graph.graph.get("inf", float("inf"))
 
     # Lambda in the algorithm
-    phases = int(math.ceil(min(math.sqrt(m), math.pow(n, 2 / 3))))
+    num_iterations_in_phase = int(math.ceil(min(math.sqrt(m), math.pow(n, 2 / 3))))
     total_routed_flow = 0
+    prev_error_bound = float('inf')
     while error_bound >= 1:
         # Delta in the paper
-        flow_to_route = math.ceil(error_bound / phases)
+        assert error_bound < prev_error_bound
+        flow_to_route = math.ceil(error_bound / num_iterations_in_phase)
 
-        for _ in range(phases):
+        for _ in range(num_iterations_in_phase):
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
                     # edges that are at capacity disappear from this algorithm on edges with strictly positive resid
@@ -199,6 +201,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
 
             max_flow_upper_bound = min_canonical_cut(graph, start_node)
             if max_flow_upper_bound <= error_bound // 2:
+                prev_error_bound = error_bound
                 while max_flow_upper_bound <= error_bound // 2 and error_bound >= 1:
                     error_bound //= 2
                 break
@@ -264,23 +267,22 @@ def get_residual_cap(graph, u, v, capacity="capacity", include_reverse_flow=True
 
 
 def update_flow(graph, u, v, flow_val, capacity="capacity"):
-    if flow_val < 0:
-        update_flow(graph, v, u, -flow_val)
-        return
+
     attr = graph[u][v]
     attr_r = graph[v][u]
     # residual edge
 
-    foward_cap_remaining = attr[capacity] - attr["flow"]
+    new_flow = flow_val + attr["flow"] - attr_r["flow"]
 
-    # forward edge
-    attr["flow"] += min(flow_val, foward_cap_remaining)
-    flow_val -= attr["flow"]
+    if new_flow < 0:
+        assert -new_flow <= attr_r["capacity"]
+        attr["flow"] = 0
+        attr_r["flow"] = new_flow
 
-    if flow_val > 0:
-        if flow_val > attr_r["flow"]:
-            raise AssertionError("Cannot update flow value here. If this code is hit, then something is wrong")
-        attr_r["flow"] -= flow_val
+    else:
+        assert new_flow <= attr["capacity"]
+        attr["flow"] = new_flow
+        attr_r["flow"] = 0
 
 
 def min_canonical_cut(graph, start_node, distance="distance"):
