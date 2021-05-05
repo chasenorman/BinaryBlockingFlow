@@ -466,12 +466,12 @@ def construct_distance_metric(graph, end_node, length='length'):
                 buckets[dist_neighbor].add(neighbor)
     return graph   
 
-
 def length_strongly_connected_components(G):
     preorder = {}
     lowlink = {}
     scc_found = set()
     scc_queue = []
+    return_val = []
     i = 0  # Preorder counter
     for source in G:
         if source not in scc_found:
@@ -502,9 +502,10 @@ def length_strongly_connected_components(G):
                             k = scc_queue.pop()
                             scc.add(k)
                         scc_found.update(scc)
-                        yield scc
+                        return_val.append(scc)
                     else:
                         scc_queue.append(v)
+    return return_val
 
 
 def condensation(G, scc=None):
