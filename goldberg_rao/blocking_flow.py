@@ -105,7 +105,7 @@ def flow_value(graph, start_node, end_node):
 def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
     X = flow_value(graph, start_node, end_node)
     if X <= maximum_flow_to_route:
-        return graph
+        return X
     graph.nodes[end_node]["excess"] = X - maximum_flow_to_route
     topo = reversed(list(nx.algorithms.dag.topological_sort(graph)))
     for v in topo:
@@ -116,7 +116,7 @@ def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
             graph.nodes[v]["excess"] -= delta
             graph.nodes[u]["excess"] += delta
             graph.edges[u, v]["flow"] -= delta
-    return min(X, maximum_flow_to_route)
+    return maximum_flow_to_route
 
 def is_flow(graph, start_node, end_node):
     for u,v,attr in graph.edges(data=True):
