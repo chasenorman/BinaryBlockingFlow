@@ -264,10 +264,9 @@ def get_residual_cap(graph, u, v, capacity="capacity", include_reverse_flow=True
     :param include_reverse_flow: Parameter to include additions to the residual capacity in reverse
     :return:
     """
-    attr = graph.edges[u, v]
-    val = attr[capacity] - attr["flow"]
+    val = graph[u][v][capacity] - graph[u][v]["flow"]
     if include_reverse_flow:
-        val += graph.edges[v, u]["flow"]
+        val += graph[v][u]["flow"]
     return val
 
 
@@ -341,7 +340,7 @@ def construct_graph_contraction(graph, start_node, end_node):
             for neighbor in scc_attr["members"]:
                 if not graph.has_edge(curr_vertex, neighbor) or is_at_capacity(graph, curr_vertex, neighbor):
                     continue
-                if neighbor not in visited and graph.edges[curr_vertex, neighbor]["length"] == 0:
+                if neighbor not in visited and graph[curr_vertex][neighbor]["length"] == 0:
                     visited.add(neighbor)
                     graph.nodes[curr_vertex]["out_children"].append(neighbor)
                     children_queue.append(neighbor)
@@ -354,7 +353,7 @@ def construct_graph_contraction(graph, start_node, end_node):
             for neighbor in scc_attr["members"]:
                 if not graph.has_edge(neighbor, curr_vertex) or is_at_capacity(graph, neighbor, curr_vertex):
                     continue
-                if neighbor not in visited and graph.edges[neighbor, curr_vertex]["length"] == 0:
+                if neighbor not in visited and graph[neighbor][curr_vertex]["length"] == 0:
                     visited.add(neighbor)
                     graph.nodes[curr_vertex]["in_children"].append(neighbor)
                     children_queue.append(neighbor)
@@ -448,7 +447,7 @@ def construct_distance_metric(graph, end_node, length='length'):
         for neighbor in graph.predecessors(vertex):
             if is_at_capacity(graph, neighbor, vertex):
                 continue
-            length_neighbor = graph.edges[neighbor, vertex][length]
+            length_neighbor = graph[neighbor][vertex][length]
             dist_vertex = graph.nodes[vertex].get("distance")
             dist_neighbor = graph.nodes[neighbor].get("distance", None)
             
