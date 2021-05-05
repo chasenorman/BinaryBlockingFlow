@@ -1,4 +1,57 @@
 import networkx as nx
+from link_cut_tree.link_cut_tree import Node
+
+
+class DynamicTree(Node):
+    def update_augmentation(self):
+        self.augmentation = self.value
+        for c in self.children:
+            if c:
+                self.augmentation = min(self.augmentation, c)
+
+    def __init__(self, name, value):
+        self.name = name
+        self.delta_sum = value
+        super().__init__(value)
+
+    def display_str(self):
+        return f"{self.name}: {self.delta_sum}"
+
+    def _rotate_up(self):
+        p = self.parent
+        c = self.children[1 - self.child_index()]
+
+        if c:
+            c.delta_sum += self.delta_sum
+
+        self.delta_sum, p.delta_sum = self.delta_sum + p.delta_sum, -self.delta_sum
+
+        super()._rotate_up()
+
+    def _lc_replace_right_subtree(self, new_right_child):
+        if self.right:
+            self.right.delta_sum += self.delta_sum
+
+        if new_right_child:
+            new_right_child.delta_sum -= self.delta_sum
+
+        super()._lc_replace_right_subtree(new_right_child)
+
+    def lc_link(self, v):
+        super().lc_link(v)
+
+        v.delta_sum += self.delta_sum
+
+    def get_sum(self):
+        self.lc_expose()
+        return self.delta_sum
+
+    def set_value(self, value):
+        self.lc_expose()
+        delta = value - self.value
+        self.delta_sum += delta
+        self.value = value
+
 
 class dynamic_tree():
     def find_root(self, v):
@@ -48,20 +101,20 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
         graph.nodes[v]["excess"] = 0
     for u,v in graph.edges:
         if u == start_node:
-            graph.edges[u, v]["flow"] = graph.edges[u, v]["capacity"]
-            graph.nodes[v]["excess"] = graph.edges[u, v]["capacity"]
+            graph[u][v]["flow"] = graph[u][v]["capacity"]
+            graph.nodes[v]["excess"] = graph[u][v]["capacity"]
         else:
-            graph.edges[u, v]["flow"] = 0
+            graph[u][v]["flow"] = 0
 
     def push(u, v):
-        delta = min(graph.nodes[u]["excess"], graph.edges[u, v]["capacity"] - graph.edges[u, v]["flow"])
-        graph.edges[u, v]["flow"] += delta
+        delta = min(graph.nodes[u]["excess"], graph[u][v]["capacity"] - graph[u][v]["flow"])
+        graph[u][v]["flow"] += delta
         graph.nodes[v]["excess"] += delta
         graph.nodes[u]["excess"] -= delta
 
     def pull(u, v):
-        delta = min(graph.nodes[v]["excess"], graph.edges[u, v]["flow"])
-        graph.edges[u, v]["flow"] -= delta
+        delta = min(graph.nodes[v]["excess"], graph[u][v]["flow"])
+        graph[u][v]["flow"] -= delta
         graph.nodes[v]["excess"] -= delta
         graph.nodes[u]["excess"] += delta
 
@@ -97,9 +150,9 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 def flow_value(graph, start_node, end_node):
     X = 0
     for u in graph.predecessors(end_node):
-        X += graph.edges[u, end_node]["flow"]
+        X += graph[u][end_node]["flow"]
     for w in graph.successors(end_node):
-        X -= graph.edges[end_node, w]["flow"]
+        X -= graph[end_node][w]["flow"]
     return X
 
 def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
@@ -112,10 +165,10 @@ def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
         for u in graph.predecessors(v):
             if graph.nodes[v]["excess"] == 0:
                 break
-            delta = min(graph.edges[u, v]["flow"], graph.nodes[v]["excess"])
+            delta = min(graph[u][v]["flow"], graph.nodes[v]["excess"])
             graph.nodes[v]["excess"] -= delta
             graph.nodes[u]["excess"] += delta
-            graph.edges[u, v]["flow"] -= delta
+            graph[u][v]["flow"] -= delta
     return maximum_flow_to_route
 
 def is_flow(graph, start_node, end_node):
