@@ -3,4 +3,4 @@ venv/
 .DS_Store
 .vscode
 goldberg_rao/out/
-*/__pycache__/*
+**/__pycache__/*
