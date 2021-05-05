@@ -96,43 +96,45 @@ class finger_tree():
 
 
 def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
-    for v in graph.nodes:
-        graph.nodes[v]["blocked"] = False
-        graph.nodes[v]["excess"] = 0
+    graph_nodes = graph.nodes
+
+    for v in graph_nodes:
+        graph_nodes[v]["blocked"] = False
+        graph_nodes[v]["excess"] = 0
     for u,v in graph.edges:
         if u == start_node:
             graph[u][v]["flow"] = graph[u][v]["capacity"]
-            graph.nodes[v]["excess"] = graph[u][v]["capacity"]
+            graph_nodes[v]["excess"] = graph[u][v]["capacity"]
         else:
             graph[u][v]["flow"] = 0
 
     def push(u, v):
-        delta = min(graph.nodes[u]["excess"], graph[u][v]["capacity"] - graph[u][v]["flow"])
+        delta = min(graph_nodes[u]["excess"], graph[u][v]["capacity"] - graph[u][v]["flow"])
         graph[u][v]["flow"] += delta
-        graph.nodes[v]["excess"] += delta
-        graph.nodes[u]["excess"] -= delta
+        graph_nodes[v]["excess"] += delta
+        graph_nodes[u]["excess"] -= delta
 
     def pull(u, v):
-        delta = min(graph.nodes[v]["excess"], graph[u][v]["flow"])
+        delta = min(graph_nodes[v]["excess"], graph[u][v]["flow"])
         graph[u][v]["flow"] -= delta
-        graph.nodes[v]["excess"] -= delta
-        graph.nodes[u]["excess"] += delta
+        graph_nodes[v]["excess"] -= delta
+        graph_nodes[u]["excess"] += delta
 
     def discharge(v):
-        if not graph.nodes[v]["blocked"]:
+        if not graph_nodes[v]["blocked"]:
             for w in graph.successors(v):
-                if not graph.nodes[w]["blocked"]:
+                if not graph_nodes[w]["blocked"]:
                     push(v, w)
-                    if graph.nodes[v]["excess"] == 0:
+                    if graph_nodes[v]["excess"] == 0:
                         return
 
         # we can assert that either v is already blocked,
         # or all outgoing edges are full or connected to a blocked node
-        graph.nodes[v]["blocked"] = True
+        graph_nodes[v]["blocked"] = True
 
         for u in graph.predecessors(v):
             pull(u, v)
-            if graph.nodes[v]["excess"] == 0:
+            if graph_nodes[v]["excess"] == 0:
                 return
 
         raise AssertionError('How did we get here?')
@@ -141,7 +143,7 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
     v = L.first_active()
     while v is not None:
         discharge(v)
-        if graph.nodes[v]["blocked"]:
+        if graph_nodes[v]["blocked"]:
             L.move_to_front(v)
         v = L.first_active()
 
@@ -159,15 +161,16 @@ def limit_flow(graph, start_node, end_node, maximum_flow_to_route):
     X = flow_value(graph, start_node, end_node)
     if X <= maximum_flow_to_route:
         return X
-    graph.nodes[end_node]["excess"] = X - maximum_flow_to_route
+    graph_nodes = graph.nodes
+    graph_nodes[end_node]["excess"] = X - maximum_flow_to_route
     topo = reversed(list(nx.algorithms.dag.topological_sort(graph)))
     for v in topo:
         for u in graph.predecessors(v):
-            if graph.nodes[v]["excess"] == 0:
+            if graph_nodes[v]["excess"] == 0:
                 break
-            delta = min(graph[u][v]["flow"], graph.nodes[v]["excess"])
-            graph.nodes[v]["excess"] -= delta
-            graph.nodes[u]["excess"] += delta
+            delta = min(graph[u][v]["flow"], graph_nodes[v]["excess"])
+            graph_nodes[v]["excess"] -= delta
+            graph_nodes[u]["excess"] += delta
             graph[u][v]["flow"] -= delta
     return maximum_flow_to_route
 
