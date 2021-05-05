@@ -171,6 +171,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     start_node = s
     end_node = t
     graph = R
+    graph_nodes = R.nodes
     sum_capacity = sum([attr[capacity] for u, v, attr in graph.edges(data=True)])
     m = graph.number_of_edges()
     n = graph.number_of_nodes()
@@ -199,7 +200,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                     continue
                 attr["_length"] = 0 if (get_residual_cap(graph, u, v)) >= flow_to_route * 3 else 1
             construct_distance_metric(graph, end_node, length="_length")
-            if graph.nodes[start_node]["distance"] == INF:
+            if graph_nodes[start_node]["distance"] == INF:
                 graph.graph['flow_value'] = total_routed_flow
                 return graph
 
@@ -215,7 +216,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                     continue
                 resid_cap = get_residual_cap(graph, u, v)
                 resid_cap_reverse = get_residual_cap(graph, v, u)
-                if 2 * flow_to_route <= resid_cap < 3 * flow_to_route <= resid_cap_reverse and graph.nodes[u]['distance'] == graph.nodes[v]['distance']:
+                if 2 * flow_to_route <= resid_cap < 3 * flow_to_route <= resid_cap_reverse and graph_nodes[u]['distance'] == graph_nodes[v]['distance']:
                     attr['length'] = 0
                 else:
                     attr['length'] = attr['_length']
@@ -300,13 +301,14 @@ def min_canonical_cut(graph, start_node, distance="distance"):
     :param distance: The attribute in graph.nodes that specifies the distance metric.
     :return:
     """
-    max_distance = graph.nodes[start_node][distance]
+    graph_nodes = graph.nodes
+    max_distance = graph_nodes[start_node][distance]
     if max_distance == 0:
         return float("inf")
     distance_arr = [0 for _ in range(max_distance)]
     for u, v, attr in graph.edges(data=True):
-        if not is_at_capacity(graph, u, v) and graph.nodes[u][distance] == graph.nodes[v][distance] + 1 and graph.nodes[v][distance] < max_distance:
-            distance_arr[graph.nodes[v][distance]] += get_residual_cap(graph, u, v)
+        if not is_at_capacity(graph, u, v) and graph_nodes[u][distance] == graph_nodes[v][distance] + 1 and graph_nodes[v][distance] < max_distance:
+            distance_arr[graph_nodes[v][distance]] += get_residual_cap(graph, u, v)
     return min(distance_arr)
 
 
@@ -369,11 +371,11 @@ def construct_graph_contraction(graph, start_node, end_node):
 
 
 def translate_flow_from_contraction_to_original(contraction, original, start_node, end_node, flow_routed):
-
+    original_nodes = original.nodes
     for node in original:
-        original.nodes[node]["flow"] = 0
-    original.nodes[start_node]["flow"] = flow_routed
-    original.nodes[end_node]["flow"] = -flow_routed
+        original_nodes[node]["flow"] = 0
+    original_nodes[start_node]["flow"] = flow_routed
+    original_nodes[end_node]["flow"] = -flow_routed
     # assign flows to edges and the flow in - out for the contracted graph
     for contract_u, contract_v, contraction_edge in contraction.edges(data=True):
         remaining_edge_flow = contraction_edge["flow"]
@@ -384,8 +386,8 @@ def translate_flow_from_contraction_to_original(contraction, original, start_nod
             start_vert, end_vert = original_edge
             flow_to_route = min(get_residual_cap(original, start_vert, end_vert), remaining_edge_flow)
             update_flow(original, start_vert, end_vert, flow_to_route)
-            original.nodes[start_vert]["flow"] = original.nodes[start_vert].get("flow", 0) - flow_to_route
-            original.nodes[end_vert]["flow"] = original.nodes[end_vert].get("flow", 0) + flow_to_route
+            original_nodes[start_vert]["flow"] = original_nodes[start_vert].get("flow", 0) - flow_to_route
+            original_nodes[end_vert]["flow"] = original_nodes[end_vert].get("flow", 0) + flow_to_route
             if flow_to_route == remaining_edge_flow:
                 break
             remaining_edge_flow -= flow_to_route
@@ -403,26 +405,27 @@ def translate_flow_from_contraction_to_original(contraction, original, start_nod
 
 
 def route_in_flow_tree(graph, curr_vertex):
-    flow = max(graph.nodes[curr_vertex]['flow'], 0)
-    for child in graph.nodes[curr_vertex]["in_children"]:
+    graph_nodes = graph.nodes
+    flow = max(graph_nodes[curr_vertex]['flow'], 0)
+    for child in graph_nodes[curr_vertex]["in_children"]:
         child_flow = route_in_flow_tree(graph, child)
         if child_flow != 0:
             update_flow(graph, child, curr_vertex, child_flow)
         flow += child_flow
-    del graph.nodes[curr_vertex]["in_children"]
+    del graph_nodes[curr_vertex]["in_children"]
     return flow
 
 
 def route_out_flow_tree(graph, curr_vertex):
-
-    flow = max(-graph.nodes[curr_vertex]['flow'], 0)
-    for child in graph.nodes[curr_vertex]["out_children"]:
+    graph_nodes = graph.nodes
+    flow = max(-graph_nodes[curr_vertex]['flow'], 0)
+    for child in graph_nodes[curr_vertex]["out_children"]:
         child_flow = route_out_flow_tree(graph, child)
         if child_flow != 0:
             update_flow(graph, curr_vertex, child, child_flow)
         flow += child_flow
-    del graph.nodes[curr_vertex]["out_children"]
-    del graph.nodes[curr_vertex]["flow"]
+    del graph_nodes[curr_vertex]["out_children"]
+    del graph_nodes[curr_vertex]["flow"]
     return flow
 
 
@@ -436,11 +439,12 @@ def construct_distance_metric(graph, end_node, length='length'):
     :param length:
     :return:
     """
+    graph_nodes = graph.nodes
     INF = graph.graph.get("inf", float("inf"))
     for node in graph:
-        graph.nodes[node]["distance"] = INF
+        graph_nodes[node]["distance"] = INF
 
-    graph.nodes[end_node]["distance"] = 0
+    graph_nodes[end_node]["distance"] = 0
     n = graph.number_of_nodes()
     buckets = [set() for _ in range(n)]
     bucket_idx = 0
@@ -455,14 +459,14 @@ def construct_distance_metric(graph, end_node, length='length'):
             if is_at_capacity(graph, neighbor, vertex):
                 continue
             length_neighbor = graph[neighbor][vertex][length]
-            dist_vertex = graph.nodes[vertex].get("distance")
-            dist_neighbor = graph.nodes[neighbor].get("distance", None)
+            dist_vertex = graph_nodes[vertex].get("distance")
+            dist_neighbor = graph_nodes[neighbor].get("distance", None)
             
             if dist_neighbor == INF or dist_neighbor > dist_vertex + length_neighbor:
                 if dist_neighbor != INF:
                     buckets[dist_neighbor].remove(neighbor)
                 dist_neighbor = dist_vertex + length_neighbor
-                graph.nodes[neighbor]["distance"] = dist_neighbor
+                graph_nodes[neighbor]["distance"] = dist_neighbor
                 buckets[dist_neighbor].add(neighbor)
     return graph   
 
