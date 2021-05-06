@@ -312,12 +312,12 @@ def min_canonical_cut(graph, start_node, distance="distance"):
     return min(distance_arr)
 
 
-def is_admissible_edge(graph, u, v, distance="distance", length="length"):
-    return graph.nodes[u][distance] == graph.nodes[v][distance] + graph[u][v][length]
+def is_admissible_edge(graph, graph_nodes, u, v, distance="distance", length="length"):
+    return graph_nodes[u][distance] == graph_nodes[v][distance] + graph[u][v][length]
 
 
 def construct_graph_contraction(graph, start_node, end_node):
-
+    graph_nodes = graph.nodes
     condensed_graph = condensation(graph)
     # construct in-tree and out-tree
 
@@ -339,14 +339,14 @@ def construct_graph_contraction(graph, start_node, end_node):
         not_visited.remove(rep_vertex)
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
-            graph.nodes[curr_vertex]["out_children"] = []
+            graph_nodes[curr_vertex]["out_children"] = []
             to_remove = set()
             for neighbor in not_visited:
                 if not graph.has_edge(curr_vertex, neighbor) or is_at_capacity(graph, curr_vertex, neighbor):
                     continue
                 if graph[curr_vertex][neighbor]["length"] == 0:
                     to_remove.add(neighbor)
-                    graph.nodes[curr_vertex]["out_children"].append(neighbor)
+                    graph_nodes[curr_vertex]["out_children"].append(neighbor)
                     children_queue.append(neighbor)
             not_visited.difference_update(to_remove)
         # in tree construction
@@ -355,7 +355,7 @@ def construct_graph_contraction(graph, start_node, end_node):
         not_visited.remove(rep_vertex)
         while len(children_queue) != 0:
             curr_vertex = children_queue.pop()
-            graph.nodes[curr_vertex]["in_children"] = []
+            graph_nodes[curr_vertex]["in_children"] = []
             to_remove = set()
 
             for neighbor in not_visited:
@@ -363,7 +363,7 @@ def construct_graph_contraction(graph, start_node, end_node):
                     continue
                 if graph[neighbor][curr_vertex]["length"] == 0:
                     to_remove.add(neighbor)
-                    graph.nodes[curr_vertex]["in_children"].append(neighbor)
+                    graph_nodes[curr_vertex]["in_children"].append(neighbor)
                     children_queue.append(neighbor)
             not_visited.difference_update(to_remove)
 
@@ -471,6 +471,7 @@ def construct_distance_metric(graph, end_node, length='length'):
     return graph   
 
 def length_strongly_connected_components(G):
+    G_nodes = G.nodes
     preorder = {}
     lowlink = {}
     scc_found = set()
@@ -487,14 +488,14 @@ def length_strongly_connected_components(G):
                     preorder[v] = i
                 done = True
                 for w in G[v]:
-                    if not is_at_capacity(G, v, w) and is_admissible_edge(G, v, w) and G[v][w]["length"] == 0 and w not in preorder:
+                    if not is_at_capacity(G, v, w) and is_admissible_edge(G, G_nodes, v, w) and G[v][w]["length"] == 0 and w not in preorder:
                         queue.append(w)
                         done = False
                         break
                 if done:
                     lowlink[v] = preorder[v]
                     for w in G[v]:
-                        if not is_at_capacity(G, v, w) and is_admissible_edge(G, v, w) and G[v][w]["length"] == 0 and w not in scc_found:
+                        if not is_at_capacity(G, v, w) and is_admissible_edge(G, G_nodes, v, w) and G[v][w]["length"] == 0 and w not in scc_found:
                             if preorder[w] > preorder[v]:
                                 lowlink[v] = min([lowlink[v], lowlink[w]])
                             else:
@@ -513,7 +514,7 @@ def length_strongly_connected_components(G):
 
 
 def condensation(G, scc=None):
-
+    G_nodes = G.nodes
     if scc is None:
         scc = length_strongly_connected_components(G)
     mapping = {}
@@ -528,16 +529,16 @@ def condensation(G, scc=None):
     i = 0
     for component in scc:
         members[i] = component
-        distances[i] = G.nodes[list(component)[0]]["distance"]
+        distances[i] = G_nodes[list(component)[0]]["distance"]
         mapping.update((n, i) for n in component)
         i += 1
     number_of_components = i
     C.add_nodes_from(range(number_of_components))
     C.add_edges_from(
-        (mapping[u], mapping[v]) for u, v in G.edges() if mapping[u] != mapping[v] and not is_at_capacity(G, u, v) and is_admissible_edge(G, u, v)
+        (mapping[u], mapping[v]) for u, v in G.edges() if mapping[u] != mapping[v] and not is_at_capacity(G, u, v) and is_admissible_edge(G, G_nodes, u, v)
     )
     for u, v, attr in G.edges(data=True):
-        if mapping[u] != mapping[v] and not is_at_capacity(G, u, v) and is_admissible_edge(G, u, v):
+        if mapping[u] != mapping[v] and not is_at_capacity(G, u, v) and is_admissible_edge(G, G_nodes, u, v):
             if (mapping[u], mapping[v]) in edge_members.keys():
                edge_members[(mapping[u], mapping[v])]["members"].add((u, v))
                edge_members[(mapping[u], mapping[v])]["capacity"] += get_residual_cap(G, u, v)

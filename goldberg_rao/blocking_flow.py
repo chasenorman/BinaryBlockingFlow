@@ -1,5 +1,7 @@
 import networkx as nx
+import ttftree
 from link_cut_tree.link_cut_tree import Node
+import llist
 
 
 class DynamicTree(Node):
@@ -11,7 +13,7 @@ class DynamicTree(Node):
 
     def __init__(self, name, value):
         self.name = name
-        self.delta_sum = value
+        self.delta_sum = 1
         super().__init__(value)
 
     def display_str(self):
@@ -48,36 +50,78 @@ class DynamicTree(Node):
 
     def set_value(self, value):
         self.lc_expose()
-        delta = value - self.value
-        self.delta_sum += delta
         self.value = value
 
 
 class dynamic_tree():
+    def __init__(self, graph):
+        self.tree = dict()
+        for i in graph.nodes:
+            self.tree[i] = DynamicTree(i, 0) # not sure what the initial value should be
+
     def find_root(self, v):
-        pass
+        return self.tree[v].lc_get_root()
 
     def find_size(self, v):
-        pass
+        return self.tree[v].get_sum()
 
     def find_value(self, v):
-        pass
+        return self.tree[v].value
 
     def find_min(self, v):
-        pass
+        return self.tree[v].lc_path_aggregate()
 
     def change_value(self, v, x):
-        pass
+        return self.tree[v].set_value(x)
 
     def link(self, v, w):
-        pass
+        return self.tree[v].lc_link(w)
 
     def cut(self, v):
-        pass
+        return self.tree[v].lc_cut()
+
+    def parent(self, v):
+        return self.tree[v].parent
 
 
 class finger_tree():
 
+    def __init__(self, graph, start_node, end_node):
+        self.graph = graph
+        self.start_node = start_node
+        self.end_node = end_node
+        self.L = llist.dllist()
+        nodes = list(nx.algorithms.dag.topological_sort(graph))
+        i_prev = 0
+        i = 1
+        while i < len(nodes):
+            if self.is_active(nodes[i]):
+                self.L.append(ttftree.to_tree(ttftree.MEASURE_ITEM_COUNT, nodes[i_prev:i]))
+                i_prev = i
+            i += 1
+        self.L.append(ttftree.to_tree(ttftree.MEASURE_ITEM_COUNT, nodes[i_prev:i]))
+
+    def is_active(self, v):
+        return v != self.start_node and v != self.end_node and \
+                    self.graph.nodes[v]["excess"] > 0
+
+    def first_active(self):
+        first = self.L.first
+        if self.is_active(first.value.get_first()):
+            return first.value.get_first()
+        return first.next.value.get_first()
+
+    def move_to_front(self, v):
+        first = self.L.first
+        if first.value.get_first() == v:
+            return
+        if first.next.value.get_first() != v:
+            raise AssertionError('v is not the head of one of the first two sublists')
+        first.next.value = first.next.value.without_first()
+        if self.is_active(first.value.get_first()):
+            return
+
+class node_list():
     def __init__(self, graph, start_node, end_node):
         self.graph = graph
         self.start_node = start_node
@@ -93,6 +137,7 @@ class finger_tree():
     def move_to_front(self, v):
         self.L.remove(v)
         self.L.insert(0, v)
+
 
 
 def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
@@ -139,7 +184,7 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 
         raise AssertionError('How did we get here?')
 
-    L = finger_tree(graph, start_node, end_node)
+    L = node_list(graph, start_node, end_node)
     v = L.first_active()
     while v is not None:
         discharge(v)
