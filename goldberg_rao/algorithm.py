@@ -229,7 +229,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             we can already route delta flow through that component.
             """
             if contracted_graph_graph["start_mapping"] != contracted_graph_graph["end_mapping"]:
-                flow_routed = compute_blocking_flow(contracted_graph, contracted_graph_graph["start_mapping"], contracted_graph.graph["end_mapping"], flow_to_route)
+                flow_routed = compute_blocking_flow(contracted_graph, contracted_graph_graph["start_mapping"], contracted_graph_graph["end_mapping"], flow_to_route)
 
             total_routed_flow += flow_routed
 
@@ -284,7 +284,7 @@ def update_flow(graph, u, v, flow_val, capacity="capacity"):
     if new_flow < 0:
         assert -new_flow <= attr_r["capacity"]
         attr["flow"] = 0
-        attr_r["flow"] = new_flow
+        attr_r["flow"] = -new_flow
 
     else:
         assert new_flow <= attr["capacity"]

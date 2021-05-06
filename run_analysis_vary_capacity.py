@@ -5,6 +5,7 @@ import time
 import pickle
 
 from goldberg_rao.algorithm import goldberg_rao
+from goldberg_rao.visualize import visualize_graph
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +17,7 @@ from networkx.generators.random_graphs import random_regular_graph
 from networkx.drawing.nx_pylab import draw_networkx
 
 verbose = True
+random.seed(2)
     
 if verbose:
     def vprint(*args):
@@ -56,6 +58,8 @@ def run_analysis_n_nodes(n, cap=1, n_runs=3):
         
             init_time = time.time()
             R_gr = goldberg_rao(G_gr, start_node, end_node)
+
+
             total_time_gr += time.time() - init_time
             
             # Check correctness
@@ -63,6 +67,7 @@ def run_analysis_n_nodes(n, cap=1, n_runs=3):
             gr_mf = R_gr.graph["flow_value"]
             if d_mf != gr_mf:
                 vprint(f"\t\t\tComputed max flow in {name} graph is {d_mf}, but goldberg_rao function computed {gr_mf}".upper())
+
 
         vprint(f"{name} with {len(G_gr.nodes)} nodes and capacity {cap} took {total_time_gr / n_runs} seconds with goldberg_rao")
         vprint(f"{name} with {len(G_dinitz.nodes)} nodes and capacity {cap} took {total_time_dinitz / n_runs} seconds with dinitz")
