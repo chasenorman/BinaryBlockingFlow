@@ -1,83 +1,6 @@
 import networkx as nx
-from link_cut_tree.link_cut_tree import Node
 
-
-class DynamicTree(Node):
-    def update_augmentation(self):
-        self.augmentation = self.value
-        for c in self.children:
-            if c:
-                self.augmentation = min(self.augmentation, c)
-
-    def __init__(self, name, value):
-        self.name = name
-        self.delta_sum = value
-        super().__init__(value)
-
-    def display_str(self):
-        return f"{self.name}: {self.delta_sum}"
-
-    def _rotate_up(self):
-        p = self.parent
-        c = self.children[1 - self.child_index()]
-
-        if c:
-            c.delta_sum += self.delta_sum
-
-        self.delta_sum, p.delta_sum = self.delta_sum + p.delta_sum, -self.delta_sum
-
-        super()._rotate_up()
-
-    def _lc_replace_right_subtree(self, new_right_child):
-        if self.right:
-            self.right.delta_sum += self.delta_sum
-
-        if new_right_child:
-            new_right_child.delta_sum -= self.delta_sum
-
-        super()._lc_replace_right_subtree(new_right_child)
-
-    def lc_link(self, v):
-        super().lc_link(v)
-
-        v.delta_sum += self.delta_sum
-
-    def get_sum(self):
-        self.lc_expose()
-        return self.delta_sum
-
-    def set_value(self, value):
-        self.lc_expose()
-        delta = value - self.value
-        self.delta_sum += delta
-        self.value = value
-
-
-class dynamic_tree():
-    def find_root(self, v):
-        pass
-
-    def find_size(self, v):
-        pass
-
-    def find_value(self, v):
-        pass
-
-    def find_min(self, v):
-        pass
-
-    def change_value(self, v, x):
-        pass
-
-    def link(self, v, w):
-        pass
-
-    def cut(self, v):
-        pass
-
-
-class finger_tree():
-
+class node_list():
     def __init__(self, graph, start_node, end_node):
         self.graph = graph
         self.start_node = start_node
@@ -93,6 +16,7 @@ class finger_tree():
     def move_to_front(self, v):
         self.L.remove(v)
         self.L.insert(0, v)
+
 
 
 def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
@@ -139,7 +63,7 @@ def compute_blocking_flow(graph, start_node, end_node, maximum_flow_to_route):
 
         raise AssertionError('How did we get here?')
 
-    L = finger_tree(graph, start_node, end_node)
+    L = node_list(graph, start_node, end_node)
     v = L.first_active()
     while v is not None:
         discharge(v)
