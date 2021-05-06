@@ -41,7 +41,11 @@ def blocking_flow_helper(graph, curr_node, curr_path, end_node, max_flow_left):
         path_found = blocking_flow_helper(graph, neighbor, curr_path, end_node, max_flow_left)
         if path_found >= 0:
             return path_found
+
     curr_path.pop()
+    if curr_path:
+        graph.remove_edge(curr_path[-1], curr_node)
+
     return -1
 
 

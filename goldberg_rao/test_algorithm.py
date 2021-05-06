@@ -26,7 +26,7 @@ def test_correctness():
 
         # Set random capacities of graph edges
         for u, v in G_dinitz.edges:
-            cap = randint(1, 5)
+            cap = randint(1, 20)
             G_dinitz.edges[u, v]["capacity"] = cap
             G_gr.edges[u, v]["capacity"] = cap
 
