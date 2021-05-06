@@ -188,7 +188,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
         assert prev_error_bound == float("inf") or error_bound <= prev_error_bound // 2
         flow_to_route = math.ceil(error_bound / num_iterations_in_phase)
 
-        for _ in range(num_iterations_in_phase):
+        for _ in range(12 * num_iterations_in_phase):
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
                     # edges that are at capacity disappear from this algorithm on edges with strictly positive resid
