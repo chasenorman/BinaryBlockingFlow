@@ -33,21 +33,17 @@ def run_analysis_n_nodes(n, unit_cap, n_runs=3):
               lambda: binomial_tree(int(round(np.log2(n)))), lambda: cycle_graph(n),
               lambda: path_graph(n), lambda: star_graph(n-1), lambda: random_regular_graph(3, n), lambda: random_regular_graph(5, n)]
 
-    results_gr = {}
     results_dinitz = {}
     for graph, name in zip(graphs, names):
         # Initialize both graphs
         G_dinitz = graph()
-        G_gr = G_dinitz.copy()
 
-        total_time_gr = 0
         total_time_dinitz = 0
         for _ in range(n_runs):
             # Set random capacities of graph edges
             for u, v in G_dinitz.edges:
                 cap = randint(1, 100) if not unit_cap else 1
                 G_dinitz.edges[u, v]["capacity"] = cap
-                G_gr.edges[u, v]["capacity"] = cap
 
             # Pick random start and end node
             start_node = randint(0, len(G_dinitz.nodes)-1)
@@ -59,46 +55,27 @@ def run_analysis_n_nodes(n, unit_cap, n_runs=3):
             R_dinitz = dinitz(G_dinitz, start_node, end_node)
             total_time_dinitz += time.time() - init_time
         
-            init_time = time.time()
-            R_gr = goldberg_rao(G_gr, start_node, end_node)
-            total_time_gr += time.time() - init_time
-            
-            # Check correctness
-            d_mf = R_dinitz.graph["flow_value"]
-            gr_mf = R_gr.graph["flow_value"]
-            if d_mf != gr_mf:
-                vprint(f"\t\t\tComputed max flow in {name} graph is {d_mf}, but goldberg_rao function computed {gr_mf}".upper())
-
-        vprint(f"{name} with {len(G_gr.nodes)} nodes took {total_time_gr / n_runs} seconds with goldberg_rao")
         vprint(f"{name} with {len(G_dinitz.nodes)} nodes took {total_time_dinitz / n_runs} seconds with dinitz")
-        results_gr[name] = total_time_gr / n_runs
         results_dinitz[name] = total_time_dinitz / n_runs
 
-    return results_gr, results_dinitz
+    return results_dinitz
 
 def main():
     output_filename_d = "most_graphs_20_to_2000_nodes_dinitz"
-    output_filename_gr = "most_graphs_20_to_2000_nodes_goldberg_rao"
     n_nodes = [int(n) for n in range(20, 2001, 10)]
-    unit_results_gr = {}
     unit_results_dinitz = {}
-    rand_cap_results_gr = {}
     rand_cap_results_dinitz = {}
     
     for n in n_nodes:
-        unit_results_gr[n], unit_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=True, n_runs=3)
+        unit_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=True, n_runs=10)
         #rand_cap_results_gr[n], rand_cap_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=False, n_runs=1)
 
     with open(output_filename_d, "wb") as f:
         pickle.dump(unit_results_dinitz, f)
 
-    with open(output_filename_gr, "wb") as f:
-        pickle.dump(unit_results_gr, f)
-
     for name in names:
-        plt.plot(n_nodes, [unit_results_gr[n][name] for n in n_nodes], label=f"{name}, goldberg-rao")
-        #plt.plot(n_nodes, [unit_results_dinitz[n][name] for n in n_nodes], label=f"{name}, dinitz")
-    plt.title("Runtime of goldberg rao vs. dinitz in seconds with unit capacities")
+        plt.plot(n_nodes, [unit_results_dinitz[n][name] for n in n_nodes], label=f"{name}, dinitz")
+    plt.title("Runtime of Dinitz' algorithm in seconds with unit capacities")
     plt.xlabel("Number of nodes")
     plt.ylabel("Runtime (seconds)")
     plt.legend()

@@ -1,8 +1,6 @@
 import random
-import math
 from random import randint
 import time
-import pickle
 
 from goldberg_rao.algorithm import goldberg_rao
 
@@ -24,14 +22,11 @@ if verbose:
 else:   
     vprint = lambda *a: None
 
-names = ["binary_tree", "binomial_tree", "cycle_graph",
-         "path_graph", "star_graph", "3-regular graph", "5-regular graph"]
+names = ["complete_graph"]
 
-def run_analysis_n_nodes(n, unit_cap, n_runs=3):
+def run_analysis_n_nodes(n, unit_cap, n_runs=1):
     print(f"Running analysis for {n} nodes...")
-    graphs = [lambda: balanced_tree(2, int(round(np.log2(n)-1))),
-              lambda: binomial_tree(int(round(np.log2(n)))), lambda: cycle_graph(n),
-              lambda: path_graph(n), lambda: star_graph(n-1), lambda: random_regular_graph(3, n), lambda: random_regular_graph(5, n)]
+    graphs = [lambda: complete_graph(n)]
 
     results_gr = {}
     results_dinitz = {}
@@ -69,24 +64,24 @@ def run_analysis_n_nodes(n, unit_cap, n_runs=3):
             if d_mf != gr_mf:
                 vprint(f"\t\t\tComputed max flow in {name} graph is {d_mf}, but goldberg_rao function computed {gr_mf}".upper())
 
-        vprint(f"{name} with {len(G_gr.nodes)} nodes took {total_time_gr / n_runs} seconds with goldberg_rao")
-        vprint(f"{name} with {len(G_dinitz.nodes)} nodes took {total_time_dinitz / n_runs} seconds with dinitz")
+        vprint(f"{name} with {n} nodes took {total_time_gr / n_runs} seconds with goldberg_rao")
+        vprint(f"{name} with {n} nodes took {total_time_dinitz / n_runs} seconds with dinitz")
         results_gr[name] = total_time_gr / n_runs
         results_dinitz[name] = total_time_dinitz / n_runs
 
     return results_gr, results_dinitz
 
 def main():
-    output_filename_d = "most_graphs_20_to_2000_nodes_dinitz"
-    output_filename_gr = "most_graphs_20_to_2000_nodes_goldberg_rao"
-    n_nodes = [int(n) for n in range(20, 2001, 10)]
+    output_filename_d = "complete_graph_20_to_2000_nodes_dinitz"
+    output_filename_gr = "complete_graph_20_to_2000_nodes_goldberg_rao"
+    n_nodes = [int(n) for n in range(20, 500, 10)]
     unit_results_gr = {}
     unit_results_dinitz = {}
     rand_cap_results_gr = {}
     rand_cap_results_dinitz = {}
     
     for n in n_nodes:
-        unit_results_gr[n], unit_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=True, n_runs=3)
+        unit_results_gr[n], unit_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=True, n_runs=1)
         #rand_cap_results_gr[n], rand_cap_results_dinitz[n] = run_analysis_n_nodes(n, unit_cap=False, n_runs=1)
 
     with open(output_filename_d, "wb") as f:
@@ -104,17 +99,6 @@ def main():
     plt.legend()
     plt.plot()
     plt.show()
-
-    """
-    for name in names:
-        plt.plot(n_nodes, [rand_cap_results_gr[n][name] for n in n_nodes], label=f"{name}, goldberg-rao")
-        plt.plot(n_nodes, [rand_cap_results_dinitz[n][name] for n in n_nodes], label=f"{name}, dinitz")
-    plt.title("Runtime of goldberg rao vs. dinitz in seconds with random capacities from 1-100")
-    plt.xlabel("Number of nodes")
-    plt.ylabel("Runtime (seconds)")
-    plt.legend()
-    plt.plot()
-    """  
     
 if __name__ == "__main__":
     main()
