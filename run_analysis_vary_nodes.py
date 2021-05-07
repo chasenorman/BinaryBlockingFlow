@@ -76,7 +76,7 @@ def run_analysis_n_nodes(n, d, cap, n_runs=3):
 def main():
     output_filename_d = "vary_nodes_dinitz"
     output_filename_gr = "vary_nodes_goldberg_rao"
-    n_edges = [500, 1000, 2000]
+    n_edges = [1000, 2000, 3000]
     cap = 1
     unit_results_gr = {n: {} for n in n_edges}
     unit_results_dinitz = {n: {} for n in n_edges}
@@ -84,8 +84,8 @@ def main():
     for n in n_edges:
         for d in range(1, n):
             n_nodes = 2*n/d
-            if n_nodes == int(n_nodes):
-                unit_results_gr[n][n_nodes], unit_results_dinitz[n][n_nodes] = run_analysis_n_nodes(int(n_nodes), n, 1, n_runs=5)
+            if n_nodes == int(n_nodes) and d <= n_nodes:
+                unit_results_gr[n][n_nodes], unit_results_dinitz[n][n_nodes] = run_analysis_n_nodes(int(n_nodes), d, 1, n_runs=5)
 
     with open(output_filename_d, "wb") as f:
         pickle.dump(unit_results_dinitz, f)
@@ -94,7 +94,6 @@ def main():
         pickle.dump(unit_results_gr, f)
 
     for n in n_edges:
-        n_edges = [n*d/2 for d in range(2, n, 2)]
         plt.plot(unit_results_gr[n].keys(), unit_results_gr[n].values(), label=f"d-regular graph with {n} edges")
     plt.title("Runtime of Goldberg-Rao on d-regular graphs in seconds vs. number of nodes")
     plt.xlabel("Number of edges")
@@ -104,8 +103,7 @@ def main():
     plt.show()
 
     for n in n_edges:
-        n_edges = [n*d/2 for d in range(2, n, 2)]
-        plt.plot(unit_results_gr[n].keys(), unit_results_gr[n].values(), label=f"d-regular graph with {n} edges")
+        plt.plot(unit_results_dinitz[n].keys(), unit_results_dinitz[n].values(), label=f"d-regular graph with {n} edges")
     plt.title("Runtime of Dinitz on d-regular graphs in seconds vs. number of nodes")
     plt.xlabel("Number of edges")
     plt.ylabel("Runtime (seconds)")
