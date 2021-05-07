@@ -4,3 +4,4 @@ venv/
 .vscode
 goldberg_rao/out/
 **/__pycache__/*
+vary*
