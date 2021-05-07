@@ -21,7 +21,7 @@ See the following resources to learn more about it:
 """
 
 
-def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, cutoff=None):
+def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False):
 
     """Find a maximum single-commodity flow using Dinitz' algorithm.
 
@@ -60,10 +60,6 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
         If True compute only the value of the maximum flow. This parameter
         will be ignored by this algorithm because it is not applicable.
 
-    cutoff : integer, float
-        If specified, the algorithm will terminate when the flow value reaches
-        or exceeds the cutoff. In this case, it may be unable to immediately
-        determine a minimum cut. Default value: None.
 
     Returns
     -------
@@ -85,6 +81,7 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
     See also
     --------
     :meth:`maximum_flow`
+    :meth:`dinitz`
     :meth:`minimum_cut`
     :meth:`preflow_push`
     :meth:`shortest_augmenting_path`
@@ -114,7 +111,6 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
 
     Examples
     --------
-    >>> from networkx.algorithms.flow import dinitz
 
     The functions that implement flow algorithms and output a residual
     network, such as this one, are not imported to the base NetworkX
@@ -129,7 +125,7 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
     >>> G.add_edge("d", "e", capacity=2.0)
     >>> G.add_edge("c", "y", capacity=2.0)
     >>> G.add_edge("e", "y", capacity=3.0)
-    >>> R = dinitz(G, "x", "y")
+    >>> R = goldberg_rao(G, "x", "y")
     >>> flow_value = nx.maximum_flow_value(G, "x", "y")
     >>> flow_value
     3.0
@@ -144,7 +140,7 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
            http://www.cs.bgu.ac.il/~dinitz/Papers/Dinitz_alg.pdf
 
     """
-    residual =  goldberg_rao_impl(G, s, t, capacity, residual, cutoff)
+    residual = goldberg_rao_impl(G, s, t, capacity, residual)
 
     if value_only:
         return residual.graph['flow_value']
@@ -152,7 +148,16 @@ def goldberg_rao(G, s, t, capacity="capacity", residual=None, value_only=False, 
     return residual
 
 
-def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
+def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None):
+    """
+    Full implementation of the Goldberg-Rao Algorithm
+    :param G: NetworkX Graph
+    :param s: Starting Node
+    :param t: Ending Node
+    :param capacity: Key value to index into edges to get the capacity on that edge
+    :param residual: Residual graph to operate on.
+    :return: Graph with attribute stored in the "flow_value" as well as a "flow" on each edge.
+    """
     if s not in G:
         raise nx.NetworkXError(f"node {str(s)} not in graph")
     if t not in G:
@@ -168,6 +173,8 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     for u in R:
         for e in R[u].values():
             e["flow"] = 0
+
+    # sets up all parameters and gives more descriptive names
     start_node = s
     end_node = t
     graph = R
@@ -184,12 +191,16 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
     num_iterations_in_phase = int(math.ceil(min(math.sqrt(m), math.pow(n, 2 / 3))))
     total_routed_flow = 0
     prev_error_bound = float('inf')
+
     while error_bound >= 1:
-        # Delta in the paper
+
+        # Ensures code does not have bugs.
         assert prev_error_bound == float("inf") or error_bound <= prev_error_bound // 2
+        # Delta in the paper
         flow_to_route = math.ceil(error_bound / num_iterations_in_phase)
 
-        for _ in range(12 * num_iterations_in_phase):
+        # 8 iterations is theoretically required to run this, although in practice it usually does not run that long
+        for _ in range(8 * num_iterations_in_phase):
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
                     # edges that are at capacity disappear from this algorithm on edges with strictly positive resid
@@ -200,18 +211,23 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                         del attr["length"]
                     continue
                 attr["_length"] = 0 if (get_residual_cap(graph, u, v)) >= flow_to_route * 3 else 1
+
             construct_distance_metric(graph, graph_nodes, end_node, length="_length")
+
             if graph_nodes[start_node]["distance"] == INF:
                 graph_graph['flow_value'] = total_routed_flow
                 return graph
 
             max_flow_upper_bound = min_canonical_cut(graph, graph_nodes, start_node)
+
             if max_flow_upper_bound <= error_bound // 2:
                 prev_error_bound = error_bound
+                # Speed up that avoids computing unnecessary distance metrics
                 while max_flow_upper_bound <= error_bound // 2 and error_bound >= 1:
                     error_bound //= 2
                 break
 
+            # Assigns Special Edges to have a length of 0.
             for u, v, attr in graph.edges(data=True):
                 if is_at_capacity(graph, u, v):
                     continue
@@ -221,9 +237,13 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
                     attr['length'] = 0
                 else:
                     attr['length'] = attr['_length']
+
             contracted_graph = construct_graph_contraction(graph, graph_nodes, start_node, end_node)
+
+            # Caching the graph dictionary to speed things up.
             contracted_graph_graph = contracted_graph.graph
             flow_routed = flow_to_route
+
             """
             if the start and end notes already in the same component, we don't need a blocking flow since 
             we can already route delta flow through that component.
@@ -234,6 +254,7 @@ def goldberg_rao_impl(G, s, t, capacity="capacity", residual=None, cutoff=None):
             total_routed_flow += flow_routed
 
             if flow_routed == 0:
+                # This will end up resulting in an infinite loop, so we should just return here.
                 graph_graph['flow_value'] = total_routed_flow
                 return graph
 
@@ -260,12 +281,12 @@ def is_at_capacity(graph, start_vert, end_vert, capacity="capacity"):
 def get_residual_cap(graph, u, v, capacity="capacity", include_reverse_flow=True):
     """
     Returns the residual capacity of the graph
-    :param graph:
-    :param u:
-    :param v:
-    :param capacity:
+    :param graph: NetworkX graph
+    :param u: Start Vertex
+    :param v: End Vertex
+    :param capacity: Variable to index into
     :param include_reverse_flow: Parameter to include additions to the residual capacity in reverse
-    :return:
+    :return: The residual capacity on edge uv
     """
     val = graph[u][v][capacity] - graph[u][v]["flow"]
     if include_reverse_flow:
@@ -274,20 +295,33 @@ def get_residual_cap(graph, u, v, capacity="capacity", include_reverse_flow=True
 
 
 def update_flow(graph, u, v, flow_val, capacity="capacity"):
+   """
+    Updates the flow on edge uv, taking into account residual edges and the flow on reverse edges.
 
+   :param graph: NetworkX graph
+   :param u: start node
+   :param v: end node
+   :param flow_val: amount of flow to add to edge
+   :param capacity: The attribute associated with capacity on the edge
+   :return:
+   """
+
+    # Reverse dictionaries
     attr = graph[u][v]
     attr_r = graph[v][u]
-    # residual edge
 
+    # Determines if flow is forwards or backwards.
     new_flow = flow_val + attr["flow"] - attr_r["flow"]
 
     if new_flow < 0:
-        assert -new_flow <= attr_r["capacity"]
+        # Ensures no bugs
+        assert -new_flow <= attr_r[capacity]
         attr["flow"] = 0
         attr_r["flow"] = -new_flow
 
     else:
-        assert new_flow <= attr["capacity"]
+        # Ensures no bugs
+        assert new_flow <= attr[capacity]
         attr["flow"] = new_flow
         attr_r["flow"] = 0
 
@@ -314,13 +348,35 @@ def min_canonical_cut(graph, graph_nodes, start_node, distance="distance"):
 
 
 def is_admissible_edge(graph, graph_nodes, u, v, distance="distance", length="length"):
+    """
+    Checks if an edge in the graph is admissible
+    :param graph: NetworkX Graph
+    :param graph_nodes: Cached node graph
+    :param u: Start Vertex
+    :param v: End Vertex
+    :param distance: Distance attribute on the node dictionary
+    :param length: Length attribute on the edges
+    :return: Whether the edge is admissible (on the shortest path to end node)
+    """
     return graph_nodes[u][distance] == graph_nodes[v][distance] + graph[u][v][length]
 
 
 def construct_graph_contraction(graph, graph_nodes, start_node, end_node):
-    condensed_graph = condensation(graph, graph_nodes)
-    # construct in-tree and out-tree
+    """
+    Creates the contracted graph stemming from the strongly connected components of 0 length edges. Assumes that
+    a distance and length function are assigned to the nodes and edges.
 
+    :param graph: NetworkX DiGraph
+    :param graph_nodes: Cached node dictionary
+    :param start_node: Starting Node
+    :param end_node: Ending Node
+    :return:
+    """
+
+    # Contracts SCC incuded by 0 length nodes.
+    condensed_graph = condensation(graph, graph_nodes)
+
+    # Constructs the In-tree and Out-Tree data structure on the nodes.
     for scc, scc_attr in condensed_graph.nodes(data=True):
 
         rep_vertex = next(iter(scc_attr["members"]))
@@ -371,10 +427,23 @@ def construct_graph_contraction(graph, graph_nodes, start_node, end_node):
 
 
 def translate_flow_from_contraction_to_original(contraction, original, original_nodes, start_node, end_node, flow_routed):
+    """
+    Moves flow from the contraction to the original.
+    :param contraction: Contracted graph
+    :param original: Original Graph
+    :param original_nodes: Cached copy of the original graph nodes
+    :param start_node: Starting Node
+    :param end_node: Ending Node
+    :param flow_routed: Flow routed in the contraction
+    :return: Updates original graph with a new flow augmented from the contraction.
+    """
+
+    # Assigns inital flow to all nodes
     for node in original:
         original_nodes[node]["flow"] = 0
     original_nodes[start_node]["flow"] = flow_routed
     original_nodes[end_node]["flow"] = -flow_routed
+
     # assign flows to edges and the flow in - out for the contracted graph
     for contract_u, contract_v, contraction_edge in contraction.edges(data=True):
         remaining_edge_flow = contraction_edge["flow"]
@@ -392,7 +461,6 @@ def translate_flow_from_contraction_to_original(contraction, original, original_
             remaining_edge_flow -= flow_to_route
 
     # assigns flows for each strongly connected component
-
     for vertex, attr in contraction.nodes(data=True):
 
         if len(attr["members"]) >= 2:
@@ -404,6 +472,7 @@ def translate_flow_from_contraction_to_original(contraction, original, original_
 
 
 def route_in_flow_tree(graph, graph_nodes, curr_vertex):
+    """ Helper function to route in-flow """
     flow = max(graph_nodes[curr_vertex]['flow'], 0)
     for child in graph_nodes[curr_vertex]["in_children"]:
         child_flow = route_in_flow_tree(graph, graph_nodes, child)
@@ -415,6 +484,7 @@ def route_in_flow_tree(graph, graph_nodes, curr_vertex):
 
 
 def route_out_flow_tree(graph, graph_nodes, curr_vertex):
+    """ Helper function to route out-flow """
     flow = max(-graph_nodes[curr_vertex]['flow'], 0)
     for child in graph_nodes[curr_vertex]["out_children"]:
         child_flow = route_out_flow_tree(graph, graph_nodes, child)
@@ -431,11 +501,15 @@ def construct_distance_metric(graph, graph_nodes, end_node, length='length'):
     Given a length we compute a distance metric on the graph using the shortest path metric where the edge weights are
     the distances.
 
+    Uses Dial's algorithm to solve this problem.
+
     :param graph: Networkx Graph
+    :param graph_nodes: Cached copy of node dictionary
     :param end_node: The node which we compute distances from (0 distance node)
-    :param length:
-    :return:
+    :param length: Attribute on edge that represents the length on that edge
+    :return: Updates graph with params for each node containing the distance.
     """
+
     INF = graph.graph.get("inf", float("inf"))
     for node in graph:
         graph_nodes[node]["distance"] = INF
@@ -445,6 +519,7 @@ def construct_distance_metric(graph, graph_nodes, end_node, length='length'):
     buckets = [set() for _ in range(n)]
     bucket_idx = 0
     buckets[0].add(end_node)
+
     while True:
         while bucket_idx < n and len(buckets[bucket_idx]) == 0:
             bucket_idx += 1
@@ -466,7 +541,12 @@ def construct_distance_metric(graph, graph_nodes, end_node, length='length'):
                 buckets[dist_neighbor].add(neighbor)
     return graph   
 
+
 def length_strongly_connected_components(G, G_nodes):
+    """
+    Runs Tarjan's algorithm to create strongly connected components. Influenced heavily from NetworkX's own implementation
+
+    """
     preorder = {}
     lowlink = {}
     scc_found = set()
@@ -509,6 +589,9 @@ def length_strongly_connected_components(G, G_nodes):
 
 
 def condensation(G, G_nodes, scc=None):
+    """
+    Constructs the condensed graph. Heavily influenced by NetworkX's own implementation.  
+    """
     if scc is None:
         scc = length_strongly_connected_components(G, G_nodes)
     mapping = {}
