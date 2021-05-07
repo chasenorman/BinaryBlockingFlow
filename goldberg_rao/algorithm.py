@@ -295,30 +295,26 @@ def get_residual_cap(graph, u, v, capacity="capacity", include_reverse_flow=True
 
 
 def update_flow(graph, u, v, flow_val, capacity="capacity"):
-   """
+    """
     Updates the flow on edge uv, taking into account residual edges and the flow on reverse edges.
 
-   :param graph: NetworkX graph
-   :param u: start node
-   :param v: end node
-   :param flow_val: amount of flow to add to edge
-   :param capacity: The attribute associated with capacity on the edge
-   :return:
-   """
-
+    :param graph: NetworkX graph
+    :param u: start node
+    :param v: end node
+    :param flow_val: amount of flow to add to edge
+    :param capacity: The attribute associated with capacity on the edge
+    :return:
+    """
     # Reverse dictionaries
     attr = graph[u][v]
     attr_r = graph[v][u]
-
     # Determines if flow is forwards or backwards.
     new_flow = flow_val + attr["flow"] - attr_r["flow"]
-
     if new_flow < 0:
         # Ensures no bugs
         assert -new_flow <= attr_r[capacity]
         attr["flow"] = 0
         attr_r["flow"] = -new_flow
-
     else:
         # Ensures no bugs
         assert new_flow <= attr[capacity]
@@ -590,7 +586,7 @@ def length_strongly_connected_components(G, G_nodes):
 
 def condensation(G, G_nodes, scc=None):
     """
-    Constructs the condensed graph. Heavily influenced by NetworkX's own implementation.  
+    Constructs the condensed graph. Heavily influenced by NetworkX's own implementation.
     """
     if scc is None:
         scc = length_strongly_connected_components(G, G_nodes)
